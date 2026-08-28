@@ -109,9 +109,11 @@ export function Dashboard({ books }) {
   const activityMonthCounts = useMemo(() => monthsData.map((m) => m.count), [monthsData])
 
   // Цель чтения
+  const totalYearsCount = Math.max(1, availableYears.length)
+  const targetGoal = isAllYears ? READING_GOAL * totalYearsCount : READING_GOAL
   const goalYearCount = totalYearCount
-  const goalRemaining = Math.max(READING_GOAL - goalYearCount, 0)
-  const goalPercent = Math.min((goalYearCount / READING_GOAL) * 100, 100)
+  const goalRemaining = Math.max(targetGoal - goalYearCount, 0)
+  const goalPercent = Math.min((goalYearCount / targetGoal) * 100, 100)
 
   // 1. Форматы
   const formatCounts = useMemo(
@@ -138,24 +140,32 @@ export function Dashboard({ books }) {
   const genres = genreMap
   const maxGenre = genres[0]?.[1] ?? 1
 
-  // 3. Топ авторов
+  // 3. Топ авторы
   const topAuthors = useMemo(() => {
     const map = new Map()
     scopedBooks.forEach((book) => {
       if (!book.author) return
-      const entry = map.get(book.author) || { count: 0, readCount: 0, totalRating: 0, ratingCount: 0 }
+      const entry = map.get(book.author) ?? {
+        author: book.author,
+        count: 0,
+        readCount: 0,
+        totalRating: 0,
+        ratingCount: 0,
+      }
       entry.count += 1
-      if (book.status === STATUS.read) entry.readCount += 1
-      if (Number(book.rating) > 0) {
-        entry.totalRating += Number(book.rating)
-        entry.ratingCount += 1
+      if (book.status === STATUS.read) {
+        entry.readCount += 1
+        if (Number(book.rating) > 0) {
+          entry.totalRating += Number(book.rating)
+          entry.ratingCount += 1
+        }
       }
       map.set(book.author, entry)
     })
 
-    return [...map.entries()]
-      .map(([author, data]) => ({
-        author,
+    return [...map.values()]
+      .map((data) => ({
+        author: data.author,
         count: data.count,
         readCount: data.readCount,
         avgRating: data.ratingCount > 0 ? (data.totalRating / data.ratingCount).toFixed(1) : null,
@@ -175,13 +185,13 @@ export function Dashboard({ books }) {
 
   const stats = [
     {
-      label: isAllYears ? 'ВСЕГО ПРОЧИТАНО' : 'ПРОЧИТАНО',
+      label: 'ПРОЧИТАНО',
       value: totalYearCount,
       hint: isAllYears ? 'Всего прочитанных книг' : `За ${filterYear} год`,
       icon: Trophy,
     },
     {
-      label: 'ПРОЧИТАНО СТРАНИЦ',
+      label: 'СТРАНИЦ',
       value: totalPages > 0 ? totalPages.toLocaleString('ru-RU') : '0',
       hint: avgPagesPerBook ? `~${avgPagesPerBook} стр. в книге` : 'страницы не указаны',
       icon: BookOpen,
@@ -222,6 +232,21 @@ export function Dashboard({ books }) {
     [FORMAT.paper]: BookOpen,
     [FORMAT.audio]: Headphones,
     [FORMAT.ebook]: Smartphone,
+  }
+
+  const rankBadgeColors = [
+    'bg-gray-900 text-white',
+    'bg-gray-500 text-white',
+    'bg-gray-300 text-gray-800',
+  ]
+
+  function getMonthBarColor(count, maxCount, isPeak) {
+    if (isPeak) return 'bg-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.18)]'
+    if (!count || count === 0) return 'bg-gray-100'
+    const ratio = maxCount > 0 ? count / maxCount : 0
+    if (ratio >= 0.7) return 'bg-gray-800'
+    if (ratio >= 0.4) return 'bg-gray-600'
+    return 'bg-gray-400'
   }
 
   return (
@@ -325,6 +350,7 @@ export function Dashboard({ books }) {
             {monthsData.map((m) => {
               const isPeak = m.count > 0 && m.count === maxMonthCount
               const heightPct = maxMonthCount > 0 ? Math.max(10, Math.round((m.count / maxMonthCount) * 100)) : 4
+              const barColor = getMonthBarColor(m.count, maxMonthCount, isPeak)
 
               return (
                 <div key={m.value} className="flex flex-col items-center h-full justify-end">
@@ -349,13 +375,7 @@ export function Dashboard({ books }) {
                   <div className="w-full flex justify-center items-end flex-1">
                     <div
                       style={{ height: m.count > 0 ? `${heightPct}%` : '6px' }}
-                      className={`w-full max-w-[28px] sm:max-w-[42px] rounded-2xl ${
-                        isPeak
-                          ? 'bg-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.18)]'
-                          : m.count > 0
-                            ? 'bg-gray-800'
-                            : 'bg-gray-100'
-                      }`}
+                      className={`w-full max-w-[28px] sm:max-w-[42px] rounded-2xl ${barColor}`}
                     />
                   </div>
 
@@ -381,9 +401,13 @@ export function Dashboard({ books }) {
             <div>
               <h2 className="text-base font-bold tracking-tight text-gray-900 leading-tight">Цель чтения</h2>
               <p className="mt-0.5 text-xs text-gray-400 leading-tight">
-                {goalRemaining === 0
-                  ? 'Цель выполнена! Поздравляем!'
-                  : `Осталось прочитать: ${goalRemaining} ${plural(goalRemaining, 'книга', 'книги', 'книг')}`}
+                {isAllYears
+                  ? goalRemaining === 0
+                    ? 'Цель за все годы выполнена! 🎉'
+                    : `Цель за ${totalYearsCount} ${plural(totalYearsCount, 'год', 'года', 'лет')} (${READING_GOAL} кн/год)`
+                  : goalRemaining === 0
+                    ? 'Цель выполнена! Поздравляем!'
+                    : `Осталось прочитать: ${goalRemaining} ${plural(goalRemaining, 'книга', 'книги', 'книг')}`}
               </p>
             </div>
 
@@ -392,7 +416,7 @@ export function Dashboard({ books }) {
                 <span className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
                   {goalYearCount}{' '}
                   <span className="text-xl font-bold text-gray-400 sm:text-2xl">
-                    / {READING_GOAL}
+                    / {targetGoal}
                   </span>
                 </span>
                 <span className="text-base font-bold text-gray-500">{Math.round(goalPercent)}%</span>
@@ -464,7 +488,7 @@ export function Dashboard({ books }) {
                     className="flex items-center justify-between rounded-xl bg-gray-50/80 px-4 py-3"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[11px] font-extrabold text-white">
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold ${rankBadgeColors[idx] || 'bg-gray-200 text-gray-700'}`}>
                         {idx + 1}
                       </span>
                       <span className="text-xs font-bold text-gray-900">{tag}</span>
@@ -498,7 +522,7 @@ export function Dashboard({ books }) {
             </div>
 
             <div className="mt-6 space-y-2.5">
-              {topAuthors.slice(0, 3).map((item) => {
+              {topAuthors.slice(0, 3).map((item, idx) => {
                 const ratingShade = getRatingShade(item.avgRating)
 
                 return (
@@ -507,7 +531,7 @@ export function Dashboard({ books }) {
                     className="flex items-center justify-between rounded-xl bg-gray-50/80 px-4 py-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[11px] font-extrabold text-white">
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold ${rankBadgeColors[idx] || 'bg-gray-200 text-gray-700'}`}>
                         {item.count}
                       </span>
                       <p className="truncate text-xs font-bold text-gray-900">{item.author}</p>
