@@ -427,22 +427,11 @@ export function Library({
                 </div>
               ) : null}
             </div>
-
-            {/* 4. Переключатель вида (Список / Сетка) на десктопе */}
-            <button
-              type="button"
-              aria-label={viewMode === 'list' ? 'Вид карточками' : 'Вид списком'}
-              title={viewMode === 'list' ? 'Переключить на сетку' : 'Переключить на список'}
-              onClick={() => setViewMode((v) => (v === 'list' ? 'grid' : 'list'))}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-700 transition-all duration-200 hover:scale-105 hover:text-gray-900 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] active:scale-95 cursor-pointer"
-            >
-              {viewMode === 'list' ? <LayoutGrid size={18} strokeWidth={2} /> : <List size={18} strokeWidth={2} />}
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Сетка карточек */}
+      {/* Каталог карточек */}
       <div className="mt-5">
         {visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl bg-white px-6 py-20 text-center">
@@ -479,38 +468,62 @@ export function Library({
               </button>
             )}
           </div>
-        ) : viewMode === 'list' ? (
-          <div className="flex flex-col gap-1">
-            {visible.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                menuOpen={menuId === book.id}
-                onToggleMenu={setMenuId}
-                onEdit={onEdit}
-                onMarkRead={onMarkRead}
-                onQuickRate={onQuickRate}
-                onDelete={onDelete}
-                viewMode="list"
-              />
-            ))}
-          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-1 md:grid-cols-3 xl:grid-cols-4">
-            {visible.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                menuOpen={menuId === book.id}
-                onToggleMenu={setMenuId}
-                onEdit={onEdit}
-                onMarkRead={onMarkRead}
-                onQuickRate={onQuickRate}
-                onDelete={onDelete}
-                viewMode="grid"
-              />
-            ))}
-          </div>
+          <>
+            {/* Мобильный вид (списком или сеткой в зависимости от выбора в настройках) */}
+            <div className="lg:hidden">
+              {viewMode === 'list' ? (
+                <div className="flex flex-col gap-1">
+                  {visible.map((book) => (
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      menuOpen={menuId === book.id}
+                      onToggleMenu={setMenuId}
+                      onEdit={onEdit}
+                      onMarkRead={onMarkRead}
+                      onQuickRate={onQuickRate}
+                      onDelete={onDelete}
+                      viewMode="list"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+                  {visible.map((book) => (
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      menuOpen={menuId === book.id}
+                      onToggleMenu={setMenuId}
+                      onEdit={onEdit}
+                      onMarkRead={onMarkRead}
+                      onQuickRate={onQuickRate}
+                      onDelete={onDelete}
+                      viewMode="grid"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Десктопный вид (всегда классическая 4-колоночная сетка) */}
+            <div className="hidden lg:grid grid-cols-2 gap-1 md:grid-cols-3 xl:grid-cols-4">
+              {visible.map((book) => (
+                <BookCard
+                  key={book.id}
+                  book={book}
+                  menuOpen={menuId === book.id}
+                  onToggleMenu={setMenuId}
+                  onEdit={onEdit}
+                  onMarkRead={onMarkRead}
+                  onQuickRate={onQuickRate}
+                  onDelete={onDelete}
+                  viewMode="grid"
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 

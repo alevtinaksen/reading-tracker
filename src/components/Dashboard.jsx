@@ -295,8 +295,8 @@ export function Dashboard({ books, page = 'dashboard', onNavigate }) {
         </div>
       </header>
 
-      {/* Bento Grid со строгими отступами */}
-      <div className="space-y-1 pb-16">
+      {/* Bento Grid со строгими отступами (mt-5 совпадает с библиотекой на мобильных) */}
+      <div className="mt-5 space-y-1 pb-16">
         {/* 1. 6 Карточек ключевых показателей в одном ряду */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1">
           {stats.map((stat) => {

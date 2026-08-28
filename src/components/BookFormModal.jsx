@@ -3,10 +3,7 @@ import {
   BookMarked,
   BookOpen,
   Check,
-  CheckCircle2,
   ChevronDown,
-  ChevronsUpDown,
-  Circle,
   Headphones,
   Link2,
   Loader2,
@@ -23,10 +20,8 @@ import {
 } from 'lucide-react'
 import {
   EMPTY_BOOK,
-  FORMAT_OPTIONS,
   MONTHS,
   STATUS,
-  STATUS_OPTIONS,
   TAG_OPTIONS,
   YEAR_OPTIONS,
   uniqueAuthors,
@@ -52,7 +47,7 @@ const FORMAT_CHIPS = [
 export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelete }) {
   const isEdit = Boolean(book?.id)
   const [form, setForm] = useState(book ?? EMPTY_BOOK)
-  const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
 
   const [mode, setMode] = useState(isEdit ? 'manual' : 'url')
   const [importUrl, setImportUrl] = useState('')
@@ -62,6 +57,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
 
   const [isDetectingGenres, setIsDetectingGenres] = useState(false)
   const [genreMessage, setGenreMessage] = useState('')
+  const [genreMessageType, setGenreMessageType] = useState('info')
 
   const [isRecording, setIsRecording] = useState(false)
   const [isPolishing, setIsPolishing] = useState(false)
@@ -87,7 +83,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     const init = book ?? EMPTY_BOOK
     setForm(init)
     initialFormRef.current = init
-    setError('')
+    setFieldErrors({})
     setImportUrl('')
     setImportError('')
     setImportSuccess(false)
@@ -148,98 +144,126 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, showConfirmClose, form])
 
-  function update(field, val) {
-    setForm((prev) => ({ ...prev, [field]: val }))
+  function update(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    if (fieldErrors[key]) {
+      setFieldErrors((prev) => ({ ...prev, [key]: '' }))
+    }
+  }
+
+  function handleImportUrlChange(val) {
+    setImportUrl(val)
+    if (fieldErrors.importUrl) {
+      setFieldErrors((prev) => ({ ...prev, importUrl: '' }))
+    }
+    if (importError) {
+      setImportError('')
+    }
+  }
+
+  async function handleAutoDetectGenres(titleToUse, authorToUse) {
+    const bookTitle = (titleToUse ?? form.title ?? '').trim()
+    const bookAuthor = (authorToUse ?? form.author ?? '').trim()
+    if (!bookTitle) return
+
+    setIsDetectingGenres(true)
+    setGenreMessage('Подбираем жанры…')
+    setGenreMessageType('info')
+
+    try {
+      const suggested = await detectGenresForBook(bookTitle, bookAuthor)
+      if (suggested && suggested.length > 0) {
+        setForm((prev) => {
+          const currentTags = prev.tags || []
+          const merged = [...new Set([...currentTags, ...suggested])]
+          return { ...prev, tags: merged }
+        })
+        setGenreMessage(`Добавлено: ${suggested.join(', ')}`)
+        setGenreMessageType('success')
+      } else {
+        setGenreMessage('Жанры не найдены')
+        setGenreMessageType('neutral')
+      }
+    } catch {
+      setGenreMessage('Не удалось определить жанры')
+      setGenreMessageType('neutral')
+    } finally {
+      setIsDetectingGenres(false)
+      setTimeout(() => { setGenreMessage('') }, 4000)
+    }
   }
 
   async function handleImportFromUrl() {
     if (!importUrl.trim()) {
-      setImportError('Введите ссылку на книгу')
+      setFieldErrors((prev) => ({ ...prev, importUrl: 'Укажите ссылку на книгу' }))
       return
     }
     setIsImporting(true)
     setImportError('')
+    setFieldErrors({})
+
     try {
       const data = await fetchBookMetadataFromUrl(importUrl.trim())
       setForm((prev) => ({
         ...prev,
         title: data.title || prev.title,
-        author: stripPatronymic(data.author || prev.author),
+        author: data.author || prev.author,
         coverUrl: data.coverUrl || prev.coverUrl,
-        format: data.format || prev.format || 'paper',
-        tags: data.tags?.length ? [...new Set([...prev.tags, ...data.tags])] : prev.tags,
         pages: data.pages || prev.pages,
+        format: data.format || prev.format || 'paper',
+        tags: data.tags?.length ? [...new Set([...(prev.tags || []), ...data.tags])] : prev.tags,
       }))
       setImportSuccess(true)
+      setMode('manual')
+
+      if (!data.tags || data.tags.length === 0) {
+        handleAutoDetectGenres(data.title, data.author)
+      }
     } catch (err) {
-      setImportError(err.message || 'Не удалось получить данные по этой ссылке. Попробуйте заполнить вручную.')
+      setImportError(err.message || 'Не удалось загрузить данные по этой ссылке')
     } finally {
       setIsImporting(false)
     }
   }
 
-  async function handleDetectGenres() {
-    if (!form.title.trim()) {
-      setError('Сначала введите название книги')
-      return
-    }
-    setIsDetectingGenres(true)
-    setGenreMessage('')
-    try {
-      const found = await detectGenresForBook(form.title, form.author)
-      if (found.length > 0) {
-        setForm((prev) => ({ ...prev, tags: [...new Set([...(prev.tags || []), ...found])] }))
-        setGenreMessageType('success')
-        setGenreMessage(`Определено: +${found.length}`)
-        setTimeout(() => setGenreMessage(''), 3500)
-      } else {
-        setGenreMessageType('warning')
-        setGenreMessage('Жанры не найдены')
-        setTimeout(() => setGenreMessage(''), 3500)
-      }
-    } catch (err) {
-      console.error(err)
-      setGenreMessageType('error')
-      setGenreMessage('Не удалось определить жанры')
-      setTimeout(() => setGenreMessage(''), 3500)
-    } finally {
-      setIsDetectingGenres(false)
-    }
-  }
-
-  function toggleRecording() {
+  function toggleDictation() {
     if (isRecording) {
       try { recognitionRef.current?.stop() } catch {}
       setIsRecording(false)
       return
     }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      setError('Голосовой ввод не поддерживается')
+      setFieldErrors((prev) => ({ ...prev, review: 'Голосовой ввод не поддерживается в этом браузере' }))
       return
     }
+
     try {
       const recognition = new SpeechRecognition()
+      recognitionRef.current = recognition
       recognition.lang = 'ru-RU'
       recognition.continuous = true
       recognition.interimResults = true
-      let baseText = form.review ? form.review.trim() + ' ' : ''
+
+      let finalTranscript = form.review ? form.review + ' ' : ''
+
       recognition.onresult = (event) => {
-        let interim = '', final = ''
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) final += event.results[i][0].transcript
-          else interim += event.results[i][0].transcript
+        let interim = ''
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' '
+          } else {
+            interim += event.results[i][0].transcript
+          }
         }
-        if (final) { baseText += final + ' '; update('review', baseText) }
-        else if (interim) update('review', baseText + interim)
+        update('review', (finalTranscript + interim).trim())
       }
-      recognition.onerror = (event) => { setIsRecording(false) }
+      recognition.onerror = () => { setIsRecording(false) }
       recognition.onend = () => { setIsRecording(false) }
       recognition.start()
-      recognitionRef.current = recognition
       setIsRecording(true)
-    } catch (err) {
-      setError('Не удалось запустить диктофон')
+    } catch {
       setIsRecording(false)
     }
   }
@@ -267,12 +291,36 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
 
   function handleSubmit(event) {
     if (event) event.preventDefault()
-    if (!form.title.trim()) { setError('Укажите название книги'); return }
+
+    // Если режим ссылки и ещё не загрузили
+    if (mode === 'url' && !importSuccess && !isEdit) {
+      if (!importUrl.trim()) {
+        setFieldErrors({ importUrl: 'Укажите ссылку на книгу' })
+        return
+      }
+      handleImportFromUrl()
+      return
+    }
+
+    // Режим ручного ввода или редактирования
+    const errors = {}
+    if (!form.title || !form.title.trim()) {
+      errors.title = 'Укажите название книги'
+    }
+    if (!form.author || !form.author.trim()) {
+      errors.author = 'Укажите автора книги'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
     const bookToSave = {
       ...form,
       title: form.title.trim(),
       author: stripPatronymic(form.author.trim()),
-      coverUrl: form.coverUrl.trim(),
+      coverUrl: form.coverUrl ? form.coverUrl.trim() : '',
       review: form.review ? form.review.trim() : '',
       quotes: form.quotes ? form.quotes.trim() : '',
       format: isWishlist ? null : (form.format || 'paper'),
@@ -286,7 +334,8 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     onClose()
   }
 
-  const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:border-gray-900 focus:ring-1 focus:ring-gray-900'
+  const inputClass =
+    'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:border-gray-900 focus:ring-1 focus:ring-gray-900'
 
   return (
     <div
@@ -373,41 +422,133 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
           <div className="flex-1 overflow-y-auto space-y-4 px-5 py-4 sm:px-6 sm:py-5 overscroll-contain">
             {!isEdit ? (
               <div className="flex rounded-xl bg-gray-100 p-1">
-                <button type="button" onClick={() => setMode('url')} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all cursor-pointer ${mode === 'url' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}><Link2 size={14} /><span>По ссылке</span></button>
-                <button type="button" onClick={() => setMode('manual')} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all cursor-pointer ${mode === 'manual' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}><PenLine size={14} /><span>Вручную</span></button>
+                <button
+                  type="button"
+                  onClick={() => setMode('url')}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all cursor-pointer ${
+                    mode === 'url'
+                      ? 'bg-white text-gray-900 shadow-xs'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <Link2 size={14} />
+                  <span>По ссылке</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('manual')}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all cursor-pointer ${
+                    mode === 'manual'
+                      ? 'bg-white text-gray-900 shadow-xs'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <PenLine size={14} />
+                  <span>Вручную</span>
+                </button>
               </div>
             ) : null}
 
             {mode === 'url' && !importSuccess && !isEdit ? (
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 transition-all">
-                <div className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-900"><Link2 size={15} className="text-gray-500" /><span>Вставьте ссылку на книгу</span></div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input type="url" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="https://..." className={`${inputClass} text-xs`} />
-                  <button type="button" disabled={isImporting} onClick={handleImportFromUrl} className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gray-900 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 disabled:opacity-50 cursor-pointer">
-                    {isImporting ? <Loader2 size={14} className="animate-spin" /> : 'Заполнить'}
+              <div className="rounded-2xl bg-gray-100/70 p-4 transition-all">
+                <div className="mb-2 text-xs font-bold text-gray-800">
+                  <span>Вставьте ссылку на книгу</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={importUrl}
+                    onChange={(e) => handleImportUrlChange(e.target.value)}
+                    placeholder="https://..."
+                    className={`${inputClass} text-xs ${
+                      fieldErrors.importUrl ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    disabled={isImporting}
+                    onClick={handleImportFromUrl}
+                    title="Заполнить по ссылке"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isImporting ? (
+                      <Loader2 size={16} className="animate-spin text-gray-600" />
+                    ) : (
+                      <Check size={16} strokeWidth={2.5} />
+                    )}
                   </button>
                 </div>
-                {importError && <p className="mt-3 text-xs font-medium text-red-500">{importError}</p>}
+                {fieldErrors.importUrl && (
+                  <p className="mt-1.5 text-xs font-medium text-red-500">{fieldErrors.importUrl}</p>
+                )}
+                {importError && (
+                  <p className="mt-2 text-xs font-medium text-red-500">{importError}</p>
+                )}
               </div>
             ) : (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Название книги" required><input value={form.title} onChange={(e) => update('title', e.target.value)} className={inputClass} placeholder="Например: Снеговик" /></Field>
-                  <Field label="Автор" required><AuthorCombobox value={form.author} onChange={(v) => update('author', v)} existingAuthors={uniqueAuthors(books)} inputClass={inputClass} placeholder="Например: Ю Несбё" /></Field>
+                  <Field label="Название книги" required error={fieldErrors.title}>
+                    <input
+                      value={form.title}
+                      onChange={(e) => update('title', e.target.value)}
+                      className={`${inputClass} ${
+                        fieldErrors.title ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''
+                      }`}
+                      placeholder="Например: Снеговик"
+                    />
+                  </Field>
+                  <Field label="Автор" required error={fieldErrors.author}>
+                    <AuthorCombobox
+                      value={form.author}
+                      onChange={(v) => update('author', v)}
+                      existingAuthors={uniqueAuthors(books)}
+                      inputClass={`${inputClass} ${
+                        fieldErrors.author ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''
+                      }`}
+                      placeholder="Например: Ю Несбё"
+                    />
+                  </Field>
                 </div>
-                <Field label="Ссылка на обложку"><div className="relative"><input value={form.coverUrl} onChange={(e) => update('coverUrl', e.target.value)} className={`${inputClass} pl-10`} placeholder="https://..." /><Link2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" /></div></Field>
+
+                <Field label="Ссылка на обложку">
+                  <div className="relative">
+                    <input
+                      value={form.coverUrl}
+                      onChange={(e) => update('coverUrl', e.target.value)}
+                      className={`${inputClass} pl-10`}
+                      placeholder="https://..."
+                    />
+                    <Link2
+                      size={16}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                  </div>
+                </Field>
+
                 <Field label="Статус книги">
                   <div className="flex flex-wrap items-center gap-2">
                     {STATUS_CHIPS.map((option) => {
                       const active = form.status === option.value
                       return (
-                        <button key={option.value} type="button" onClick={() => update('status', option.value)} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${active ? 'bg-gray-900 text-white shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
-                          <span className={`h-2 w-2 rounded-full shrink-0 ${option.dot}`} /><span>{option.label}</span>
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => update('status', option.value)}
+                          className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                            active
+                              ? 'bg-gray-900 text-white shadow-xs'
+                              : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className={`h-2 w-2 rounded-full shrink-0 ${option.dot}`} />
+                          <span>{option.label}</span>
                         </button>
                       )
                     })}
                   </div>
                 </Field>
+
                 {!isWishlist && (
                   <div className="space-y-4">
                     <Field label="Формат">
@@ -416,30 +557,101 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                           const active = form.format === option.value
                           const Icon = option.icon
                           return (
-                            <button key={option.value} type="button" onClick={() => update('format', option.value)} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${active ? 'bg-gray-900 text-white shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
-                              <Icon size={14} strokeWidth={1.8} /><span>{option.label}</span>
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => update('format', option.value)}
+                              className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-gray-900 text-white shadow-xs'
+                                  : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <Icon size={14} strokeWidth={1.8} />
+                              <span>{option.label}</span>
                             </button>
                           )
                         })}
                       </div>
                     </Field>
+
                     <Field label="Оценка">
                       <div className="space-y-3 pb-1">
-                        <RatingPicker value={form.rating} onChange={(v) => update('rating', v)} disabled={noRating} />
-                        <div className="pt-1"><CustomCheckbox checked={noRating} onChange={(c) => update('rating', c ? null : 8)} label="Без оценки" /></div>
+                        <RatingPicker
+                          value={form.rating}
+                          onChange={(v) => update('rating', v)}
+                          disabled={noRating}
+                        />
+                        <div className="pt-1">
+                          <CustomCheckbox
+                            checked={noRating}
+                            onChange={(c) => update('rating', c ? null : 8)}
+                            label="Без оценки"
+                          />
+                        </div>
                       </div>
                     </Field>
+
                     <Field label="Месяц и год прочтения">
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
-                          <select value={form.readMonth ?? ''} disabled={noDate} onChange={(e) => update('readMonth', e.target.value)} className={`${inputClass} appearance-none pr-9 cursor-pointer`}>{MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select>
-                          <select value={form.readYear ?? ''} disabled={noDate} onChange={(e) => update('readYear', e.target.value)} className={`${inputClass} appearance-none pr-9 cursor-pointer`}>{YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+                          <div className="relative">
+                            <select
+                              value={form.readMonth ?? ''}
+                              disabled={noDate}
+                              onChange={(e) => update('readMonth', e.target.value)}
+                              className={`${inputClass} appearance-none pr-9 cursor-pointer`}
+                            >
+                              {MONTHS.map((m) => (
+                                <option key={m.value} value={m.value}>
+                                  {m.label}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown
+                              size={14}
+                              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+                          </div>
+
+                          <div className="relative">
+                            <select
+                              value={form.readYear ?? ''}
+                              disabled={noDate}
+                              onChange={(e) => update('readYear', e.target.value)}
+                              className={`${inputClass} appearance-none pr-9 cursor-pointer`}
+                            >
+                              {YEAR_OPTIONS.map((y) => (
+                                <option key={y} value={y}>
+                                  {y}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown
+                              size={14}
+                              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+                          </div>
                         </div>
-                        <CustomCheckbox checked={noDate} onChange={(c) => { if (c) setForm(prev => ({ ...prev, readMonth: null, readYear: null })); else { const d = new Date(); update('readMonth', d.getMonth() + 1); update('readYear', d.getFullYear()); } }} label="Без даты" />
+
+                        <CustomCheckbox
+                          checked={noDate}
+                          onChange={(c) => {
+                            if (c) {
+                              setForm((prev) => ({ ...prev, readMonth: null, readYear: null }))
+                            } else {
+                              const d = new Date()
+                              update('readMonth', d.getMonth() + 1)
+                              update('readYear', d.getFullYear())
+                            }
+                          }}
+                          label="Без даты"
+                        />
                       </div>
                     </Field>
                   </div>
                 )}
+
                 <Field
                   label="Жанры и теги"
                   action={
@@ -448,85 +660,148 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                         className={`text-[11px] font-semibold animate-pulse ${
                           genreMessageType === 'success'
                             ? 'text-emerald-600'
-                            : genreMessageType === 'warning'
-                              ? 'text-amber-600'
-                              : 'text-red-500'
+                            : genreMessageType === 'neutral'
+                              ? 'text-gray-500'
+                              : 'text-sky-600'
                         }`}
                       >
                         {genreMessage}
                       </span>
+                    ) : (mode === 'manual' || isEdit) && form.title ? (
+                      <button
+                        type="button"
+                        disabled={isDetectingGenres}
+                        onClick={() => handleAutoDetectGenres()}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
+                      >
+                        {isDetectingGenres ? (
+                          <Loader2 size={11} className="animate-spin text-gray-400" />
+                        ) : (
+                          <Sparkles size={11} className="text-amber-500" />
+                        )}
+                        <span>Подобрать AI</span>
+                      </button>
                     ) : null
                   }
                 >
-                  <TagMultiSelect value={form.tags} onChange={(v) => update('tags', v)} options={tagOptions} onAutoDetect={mode === 'manual' || isEdit ? handleDetectGenres : undefined} isDetecting={isDetectingGenres} canAutoDetect={Boolean(form.title.trim())} />
+                  <TagMultiSelect
+                    tags={form.tags ?? []}
+                    availableTags={tagOptions}
+                    onChange={(t) => update('tags', t)}
+                  />
                 </Field>
-                <Field label="Количество страниц">
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="1"
-                      value={form.pages ?? ''}
-                      onChange={(e) => update('pages', e.target.value ? Number(e.target.value) : null)}
-                      className={`${inputClass} pr-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                      placeholder="Например: 380"
-                    />
-                    <ChevronsUpDown
-                      size={16}
-                      className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-400"
-                    />
-                  </div>
-                </Field>
-                <div className="border-t border-gray-100 pt-3">
-                  <button type="button" onClick={() => setShowNotes(!showNotes)} className="flex w-full items-center justify-between py-1 text-xs font-semibold text-gray-500 hover:text-gray-900 cursor-pointer">
-                    <span className="flex items-center gap-1.5">{showNotes ? <Minus size={13} /> : <Plus size={13} />}<span>Отзыв или цитаты</span></span>
-                    <ChevronDown size={15} className={`transition-transform duration-200 ${showNotes ? 'rotate-180' : ''}`} />
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowNotes((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
+                  >
+                    {showNotes ? <Minus size={14} /> : <Plus size={14} />}
+                    <span>{showNotes ? 'Скрыть заметки и цитаты' : 'Добавить отзыв или цитаты'}</span>
                   </button>
-                  {showNotes && (
-                    <div className="mt-3 space-y-4 pt-1">
-                      <Field label="Отзыв">
-                        <div className="relative">
-                          <textarea value={form.review} onChange={(e) => update('review', e.target.value)} rows={3} className={`${inputClass} pr-32 ${isRecording ? 'border-red-400 ring-2 ring-red-100' : ''}`} placeholder="Напишите или надиктуйте..." />
-                          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
-                            {rawReviewBackup && <button type="button" onClick={handleRestoreRawReview} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all cursor-pointer"><RotateCcw size={13} /></button>}
-                            <button type="button" disabled={isPolishing || !form.review?.trim()} onClick={handlePolishReview} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-900 disabled:opacity-35 transition-all cursor-pointer">
-                              {isPolishing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                            </button>
-                            <button type="button" onClick={toggleRecording} className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all cursor-pointer ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100'}`}>{isRecording ? <MicOff size={13} /> : <Mic size={13} />}</button>
-                          </div>
-                        </div>
-                      </Field>
-                      <Field label="Любимые цитаты"><textarea value={form.quotes} onChange={(e) => update('quotes', e.target.value)} rows={2} className={inputClass} placeholder="По одной на строку..." /></Field>
-                    </div>
-                  )}
                 </div>
+
+                {showNotes ? (
+                  <div className="space-y-4 pt-1 animate-in fade-in duration-200">
+                    <Field
+                      label="Отзыв о книге"
+                      action={
+                        <div className="flex items-center gap-2">
+                          {rawReviewBackup && (
+                            <button
+                              type="button"
+                              onClick={handleRestoreRawReview}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all cursor-pointer"
+                              title="Вернуть исходный черновик"
+                            >
+                              <RotateCcw size={11} />
+                              <span>Вернуть</span>
+                            </button>
+                          )}
+                          {form.review && form.review.trim() && (
+                            <button
+                              type="button"
+                              disabled={isPolishing}
+                              onClick={handlePolishReview}
+                              className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 hover:bg-purple-100 transition-all cursor-pointer disabled:opacity-50"
+                              title="Превратить поток мыслей в красивый литературный отзыв"
+                            >
+                              {isPolishing ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : (
+                                <Sparkles size={11} />
+                              )}
+                              <span>Улучшить AI</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={toggleDictation}
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold transition-all cursor-pointer ${
+                              isRecording
+                                ? 'bg-red-500 text-white animate-pulse'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                            title={isRecording ? 'Остановить запись' : 'Надиктовать отзыв голосом'}
+                          >
+                            {isRecording ? <MicOff size={11} /> : <Mic size={11} />}
+                            <span>{isRecording ? 'Идёт запись…' : 'Голос'}</span>
+                          </button>
+                        </div>
+                      }
+                    >
+                      <textarea
+                        value={form.review}
+                        onChange={(e) => update('review', e.target.value)}
+                        className={`${inputClass} min-h-[90px] resize-y leading-relaxed`}
+                        placeholder="Ваши впечатления или поток мыслей (можно надиктовать голосом)…"
+                      />
+                    </Field>
+
+                    <Field label="Цитаты и заметки">
+                      <textarea
+                        value={form.quotes}
+                        onChange={(e) => update('quotes', e.target.value)}
+                        className={`${inputClass} min-h-[70px] resize-y leading-relaxed`}
+                        placeholder="Запоминающиеся цитаты или мысли…"
+                      />
+                    </Field>
+                  </div>
+                ) : null}
               </>
             )}
-            {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs font-medium text-red-600">{error}</p>}
           </div>
-          <footer className="flex shrink-0 items-center justify-between border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 bg-white">
-            {isEdit ? (
-              <button
-                type="button"
-                onClick={() => onDelete(form.id)}
-                className="inline-flex items-center gap-1 py-2 text-xs font-semibold text-red-500 transition-colors hover:text-red-600 active:scale-95 cursor-pointer"
-              >
-                <Trash2 size={14} />
-                <span>Удалить</span>
-              </button>
-            ) : (
-              <span />
-            )}
+
+          <footer className="shrink-0 flex items-center justify-between border-t border-gray-100 px-5 py-3 sm:px-6 sm:py-4 bg-white z-10">
+            <div>
+              {isEdit ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    onDelete(form.id)
+                  }}
+                  className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 transition-colors cursor-pointer px-1 py-1.5"
+                >
+                  <Trash2 size={13} />
+                  <span>Удалить</span>
+                </button>
+              ) : null}
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleAttemptClose}
-                className="rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 active:scale-95 cursor-pointer"
+                className="rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all cursor-pointer"
               >
                 Отмена
               </button>
+
               <button
                 type="submit"
-                className="rounded-xl bg-gray-900 px-5 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 active:scale-95 cursor-pointer"
+                className="rounded-xl bg-gray-900 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 active:scale-95 cursor-pointer"
               >
                 Сохранить
               </button>
@@ -538,7 +813,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
   )
 }
 
-function Field({ label, hint, action, required, children }) {
+function Field({ label, hint, action, required, error, children }) {
   return (
     <label className="block text-left">
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -551,6 +826,7 @@ function Field({ label, hint, action, required, children }) {
         {action}
       </div>
       {children}
+      {error ? <p className="mt-1 text-xs font-medium text-red-500">{error}</p> : null}
     </label>
   )
 }
@@ -559,7 +835,11 @@ function RatingPicker({ value, onChange, disabled }) {
   const current = Number(value) || 0
 
   return (
-    <div className={`flex flex-wrap items-center gap-1 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+    <div
+      className={`flex flex-wrap items-center gap-1 ${
+        disabled ? 'opacity-40 pointer-events-none' : ''
+      }`}
+    >
       {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => {
         const isSelected = current === val
         const isPast = current >= val
@@ -587,23 +867,21 @@ function RatingPicker({ value, onChange, disabled }) {
 
 function CustomCheckbox({ checked, onChange, label }) {
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-gray-500 hover:text-gray-900 transition-colors group"
-    >
+    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
       <div
-        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-all ${
-          checked
-            ? 'border-gray-900 bg-gray-900 text-white shadow-2xs'
-            : 'border-gray-300 bg-white group-hover:border-gray-400'
+        className={`flex h-4 w-4 items-center justify-center rounded border transition-all ${
+          checked ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white'
         }`}
       >
-        {checked ? <Check size={11} strokeWidth={3} /> : null}
+        {checked && <Check size={11} strokeWidth={3} />}
       </div>
-      <span className="font-medium">{label}</span>
-    </button>
+      <span className="text-xs font-semibold text-gray-600">{label}</span>
+    </label>
   )
 }
