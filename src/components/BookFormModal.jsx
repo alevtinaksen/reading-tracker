@@ -328,11 +328,11 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
               <BookMarked size={20} />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight text-gray-900">
-                {isEdit ? 'Параметры книги' : 'Новая книга'}
+              <h2 className="text-base font-bold tracking-tight text-gray-900 line-clamp-2">
+                {isEdit ? (form.title || 'Параметры книги') : 'Новая книга'}
               </h2>
               <p className="text-xs text-gray-400">
-                {isEdit ? 'Редактирование данных' : 'Добавление книги в вашу коллекцию'}
+                {isEdit ? 'Измените параметры книги в библиотеке' : 'Добавление книги в вашу коллекцию'}
               </p>
             </div>
           </div>
@@ -452,6 +452,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </div>
                 ) : null}
 
+                {/* 1. Название книги и Автор */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Название книги" required>
                     <input
@@ -462,7 +463,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                     />
                   </Field>
 
-                  <Field label="Автор">
+                  <Field label="Автор" required>
                     <AuthorCombobox
                       value={form.author}
                       onChange={(value) => update('author', value)}
@@ -473,60 +474,28 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </Field>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div>
-                    <Field label="Формат книги">
-                      <div className="grid grid-cols-3 gap-1">
-                        {FORMAT_OPTIONS.map((option) => {
-                          const active = form.format === option.value
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => update('format', option.value)}
-                              className={`flex items-center justify-center rounded-xl py-2 text-[11px] font-semibold transition-all cursor-pointer ${
-                                active
-                                  ? 'bg-gray-900 text-white shadow-xs'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </Field>
+                {/* 2. Ссылка на обложку */}
+                <Field
+                  label="Ссылка на обложку"
+                  hint="Укажите прямую ссылку на изображение обложки (JPG, PNG)"
+                >
+                  <div className="relative">
+                    <input
+                      value={form.coverUrl}
+                      onChange={(event) => update('coverUrl', event.target.value)}
+                      className={`${inputClass} pl-10`}
+                      placeholder="https://..."
+                    />
+                    <Link2
+                      size={16}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
                   </div>
+                </Field>
 
-                  <div>
-                    <Field label="Страниц" hint="Необязательно">
-                      <input
-                        type="number"
-                        min="1"
-                        value={form.pages ?? ''}
-                        onChange={(event) =>
-                          update('pages', event.target.value ? Number(event.target.value) : null)
-                        }
-                        className={inputClass}
-                        placeholder="Например: 380"
-                      />
-                    </Field>
-                  </div>
-
-                  <div>
-                    <Field label="Ссылка на обложку" hint="URL">
-                      <input
-                        value={form.coverUrl}
-                        onChange={(event) => update('coverUrl', event.target.value)}
-                        className={inputClass}
-                        placeholder="https://..."
-                      />
-                    </Field>
-                  </div>
-                </div>
-
+                {/* 3. Статус книги: просторная сетка 2x2 */}
                 <Field label="Статус книги">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {STATUS_OPTIONS.map((option) => {
                       const active = form.status === option.value
                       const statusInfo = STATUS_DESCRIPTIONS[option.value]
@@ -544,50 +513,62 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                               update('rating', null)
                             }
                           }}
-                          className={`relative flex flex-col items-start justify-between rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
+                          className={`relative flex items-center justify-between rounded-2xl border p-4 text-left transition-all cursor-pointer ${
                             active
-                              ? 'border-gray-900 bg-gray-900 text-white shadow-xs'
-                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                              ? 'border-2 border-gray-900 bg-white shadow-xs'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
                           }`}
                         >
-                          <div className="flex w-full items-center justify-between">
+                          <div>
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                                active ? 'bg-white/20 text-white' : statusInfo?.badge
-                              }`}
+                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusInfo?.badge}`}
                             >
                               {option.label}
                             </span>
+                            <p className="mt-1.5 text-xs text-gray-400 font-medium">
+                              {statusInfo?.desc}
+                            </p>
+                          </div>
+                          <div className="shrink-0 ml-3">
                             {active ? (
-                              <CheckCircle2 size={14} className="text-white" />
+                              <CheckCircle2 size={18} className="text-gray-900" />
                             ) : (
-                              <Circle size={14} className="text-gray-300" />
+                              <Circle size={18} className="text-gray-300" />
                             )}
                           </div>
-                          <span
-                            className={`mt-2 text-[10px] leading-tight ${
-                              active ? 'text-gray-300' : 'text-gray-400'
-                            }`}
-                          >
-                            {statusInfo?.desc}
-                          </span>
                         </button>
                       )
                     })}
                   </div>
                 </Field>
 
+                {/* 4. Формат книги: цельный сегмент во всю ширину */}
+                <Field label="Формат">
+                  <div className="flex rounded-2xl bg-gray-100/80 p-1">
+                    {FORMAT_OPTIONS.map((option) => {
+                      const active = form.format === option.value
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => update('format', option.value)}
+                          className={`flex flex-1 items-center justify-center rounded-xl py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                            active
+                              ? 'bg-white text-gray-900 shadow-xs'
+                              : 'text-gray-500 hover:text-gray-900'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
+
+                {/* 5. Оценка и Месяц/Год прочтения */}
                 {!isWishlist ? (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="Оценка (1–10 ★)"
-                      hint="Ваше впечатление"
-                      action={
-                        noRating ? (
-                          <span className="text-[11px] font-medium text-gray-400">Без оценки</span>
-                        ) : null
-                      }
-                    >
+                    <Field label="Оценка (1–10)">
                       <div className="space-y-2">
                         <RatingPicker
                           value={form.rating}
@@ -597,20 +578,12 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                         <CustomCheckbox
                           checked={noRating}
                           onChange={(checked) => update('rating', checked ? null : 8)}
-                          label="Не оценивать (без оценки)"
+                          label="Без оценки"
                         />
                       </div>
                     </Field>
 
-                    <Field
-                      label="Когда прочитана"
-                      hint="Месяц и год"
-                      action={
-                        noDate ? (
-                          <span className="text-[11px] font-medium text-gray-400">Без даты</span>
-                        ) : null
-                      }
-                    >
+                    <Field label="Месяц и год прочтения">
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="relative">
@@ -676,6 +649,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </div>
                 ) : null}
 
+                {/* 6. Жанры и теги */}
                 <Field
                   label="Жанры и теги"
                   hint="Выберите из существующих или введите новый тег"
@@ -698,7 +672,21 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   />
                 </Field>
 
-                {/* Свернутый блок: Отзыв (с диктофоном и AI-улучшением) и цитаты */}
+                {/* 7. Количество страниц (необязательно) */}
+                <Field label="Количество страниц" hint="Необязательно">
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.pages ?? ''}
+                    onChange={(event) =>
+                      update('pages', event.target.value ? Number(event.target.value) : null)
+                    }
+                    className={inputClass}
+                    placeholder="Например: 380"
+                  />
+                </Field>
+
+                {/* 8. Свернутый блок: Отзыв (с диктофоном и AI-улучшением) и цитаты */}
                 <div className="border-t border-gray-100 pt-3">
                   <button
                     type="button"
