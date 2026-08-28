@@ -236,12 +236,12 @@ export function Dashboard({ books }) {
 
   const rankBadgeColors = [
     'bg-gray-900 text-white',
+    'bg-gray-700 text-white',
     'bg-gray-500 text-white',
-    'bg-gray-300 text-gray-800',
   ]
 
   function getMonthBarColor(count, maxCount, isPeak) {
-    if (isPeak) return 'bg-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.18)]'
+    if (isPeak) return 'bg-gray-900'
     if (!count || count === 0) return 'bg-gray-100'
     const ratio = maxCount > 0 ? count / maxCount : 0
     if (ratio >= 0.7) return 'bg-gray-800'

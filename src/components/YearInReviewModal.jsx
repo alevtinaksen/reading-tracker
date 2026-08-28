@@ -98,15 +98,30 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
     if (!posterRef.current) return
     try {
       setIsDownloading(true)
-      const dataUrl = await toPng(posterRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-      })
-      const link = document.createElement('a')
-      link.download = `Книжные_итоги_${selectedYear}_Alevtina.png`
-      link.href = dataUrl
-      link.click()
+      let dataUrl
+      try {
+        dataUrl = await toPng(posterRef.current, {
+          cacheBust: false,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          skipFonts: true,
+        })
+      } catch (err) {
+        console.warn('First toPng attempt failed, retrying without cacheBust:', err)
+        dataUrl = await toPng(posterRef.current, {
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+        })
+      }
+
+      if (dataUrl) {
+        const link = document.createElement('a')
+        link.download = `Книжные_итоги_${selectedYear}_Alevtina.png`
+        link.href = dataUrl
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
     } catch (err) {
       console.error('Failed to generate image:', err)
     } finally {
@@ -168,24 +183,24 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
 
         {/* Инфографический постер итогов года */}
         <div className="overflow-y-auto p-6 sm:p-7 space-y-4">
-          <div ref={posterRef} className="rounded-[28px] bg-[#F9FAFB] p-6">
+          <div ref={posterRef} className="rounded-[28px] bg-[#F9FAFB] p-5 sm:p-6">
             {/* Шапка карточки */}
-            <div className="flex items-center justify-between pb-3">
+            <div className="flex items-center justify-between pb-2">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 leading-tight">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 leading-tight">
                   КНИЖНАЯ СТАТИСТИКА
                 </span>
                 <h3 className="text-2xl font-extrabold tracking-tight text-gray-900 leading-tight mt-0.5">
                   {selectedYear} год
                 </h3>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-900 shrink-0">
-                <Trophy size={20} strokeWidth={2} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-900 shrink-0">
+                <Trophy size={18} strokeWidth={2} />
               </div>
             </div>
 
-            {/* 4 ключевые метрики года */}
-            <div className="mt-3 grid grid-cols-2 gap-2.5">
+            {/* 4 ключевые метрики года с отступом 4px (gap-1) */}
+            <div className="mt-2 grid grid-cols-2 gap-1">
               <div className="rounded-2xl bg-white p-4">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                   ПРОЧИТАНО
@@ -205,7 +220,7 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
 
             {/* Страницы */}
             {totalPages > 0 ? (
-              <div className="mt-2.5 flex items-center justify-between rounded-2xl bg-white p-4">
+              <div className="mt-1 flex items-center justify-between rounded-2xl bg-white p-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     ПРОЧИТАНО СТРАНИЦ
@@ -221,9 +236,9 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
             ) : null}
 
             {/* Топ автор и Топ жанр */}
-            <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+            <div className="mt-1 grid grid-cols-2 gap-1">
               {topAuthor ? (
-                <div className="rounded-2xl bg-white p-3.5">
+                <div className="rounded-2xl bg-white p-4">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     ЛЮБИМЫЙ АВТОР
                   </span>
@@ -235,7 +250,7 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
               ) : null}
 
               {topGenre ? (
-                <div className="rounded-2xl bg-white p-3.5">
+                <div className="rounded-2xl bg-white p-4">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     ЛЮБИМЫЙ ЖАНР
                   </span>
@@ -247,22 +262,22 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
               ) : null}
             </div>
 
-            {/* Главная книга года — стиль карточки каталога */}
+            {/* Главная книга года — стиль премиальной карточки каталога */}
             {bestBook ? (
-              <div className="mt-2.5 flex items-center gap-4 rounded-2xl bg-white p-4">
+              <div className="mt-1 flex items-center gap-3.5 rounded-2xl bg-white p-4">
                 {bestBook.coverUrl ? (
                   <img
                     src={bestBook.coverUrl}
                     alt={bestBook.title}
                     crossOrigin="anonymous"
-                    className="w-14 sm:w-16 aspect-[2/3] shrink-0 rounded-xl object-cover bg-gray-100"
+                    className="w-16 sm:w-20 aspect-[2/3] shrink-0 rounded-xl object-cover shadow-2xs bg-gray-100"
                   />
                 ) : (
-                  <div className="w-14 sm:w-16 aspect-[2/3] shrink-0 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
-                    <BookOpen size={20} />
+                  <div className="w-16 sm:w-20 aspect-[2/3] shrink-0 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                    <BookOpen size={22} />
                   </div>
                 )}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 py-0.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       КНИГА ГОДА
@@ -274,31 +289,31 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm font-extrabold text-gray-900 truncate leading-snug">
+                  <p className="mt-1 text-sm sm:text-base font-extrabold text-gray-900 line-clamp-2 leading-snug">
                     {bestBook.title}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500 truncate">{bestBook.author || 'Автор не указан'}</p>
-                  {bestBook.pages ? (
-                    <p className="mt-1 text-[11px] font-semibold text-gray-400">
-                      {bestBook.pages} стр.
-                    </p>
-                  ) : null}
+                  <p className="mt-0.5 text-xs font-semibold text-gray-500 truncate">
+                    {bestBook.author || 'Автор не указан'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {bestBook.pages ? (
+                      <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+                        📄 {bestBook.pages} стр.
+                      </span>
+                    ) : null}
+                    {bestBook.tags && bestBook.tags[0] ? (
+                      <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+                        #{bestBook.tags[0]}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ) : null}
           </div>
 
-          {/* Кнопки действий: Скачать картинку и Скопировать текст */}
+          {/* Кнопки действий: слева Secondary (Скопировать текст), справа Primary (Скачать картинку) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadImage}
-              disabled={isDownloading}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 active:scale-95 cursor-pointer disabled:opacity-50"
-            >
-              <Download size={15} strokeWidth={2.5} />
-              <span>{isDownloading ? 'Сохранение...' : 'Скачать картинку'}</span>
-            </button>
             <button
               type="button"
               onClick={handleCopySummary}
@@ -315,6 +330,15 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
                   <span>Скопировать текст</span>
                 </>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadImage}
+              disabled={isDownloading}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 active:scale-95 cursor-pointer disabled:opacity-50"
+            >
+              <Download size={15} strokeWidth={2.5} />
+              <span>{isDownloading ? 'Сохранение...' : 'Скачать картинку'}</span>
             </button>
           </div>
         </div>
