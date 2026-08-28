@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
   Check,
@@ -24,6 +24,8 @@ function plural(n, one, few, many) {
 export function YearInReviewModal({ books, defaultYear, onClose }) {
   const posterRef = useRef(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [coverBase64, setCoverBase64] = useState(null)
+
   const availableYears = useMemo(() => {
     const set = new Set(books.map((b) => Number(b.readYear)).filter(Boolean))
     set.add(new Date().getFullYear())
@@ -53,6 +55,30 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
     return [...ratedBooks].sort((a, b) => Number(b.rating) - Number(a.rating))[0]
   }, [ratedBooks, yearBooks])
 
+  // Предзагрузка обложки в base64 для 100% надежного скачивания картинки (без CORS-ошибок)
+  useEffect(() => {
+    let cancelled = false
+    setCoverBase64(null)
+
+    if (bestBook?.coverUrl) {
+      fetch(bestBook.coverUrl)
+        .then((res) => (res.ok ? res.blob() : null))
+        .then((blob) => {
+          if (!blob || cancelled) return
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            if (!cancelled) setCoverBase64(reader.result)
+          }
+          reader.readAsDataURL(blob)
+        })
+        .catch(() => {})
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [bestBook?.coverUrl])
+
   // Топ автор года
   const topAuthor = useMemo(() => {
     const map = new Map()
@@ -69,7 +95,10 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
     const map = new Map()
     yearBooks.forEach((b) => {
       b.tags?.forEach((t) => {
-        map.set(t, (map.get(t) || 0) + 1)
+        const cleanTag = t.replace(/^#/, '').trim()
+        if (cleanTag) {
+          map.set(cleanTag, (map.get(cleanTag) || 0) + 1)
+        }
       })
     })
     const sorted = [...map.entries()].sort((a, b) => b[1] - a[1])
@@ -77,13 +106,14 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
   }, [yearBooks])
 
   function handleCopySummary() {
+    const genreName = topGenre?.name?.replace(/^#/, '')
     const text = [
       `📖 Мои книжные итоги за ${selectedYear} год!`,
       `• Прочитано книг: ${totalBooks}`,
       totalPages > 0 ? `• Прочитано страниц: ${totalPages.toLocaleString('ru-RU')}` : null,
       avgRating !== '—' ? `• Средняя оценка: ${avgRating} / 10 ★` : null,
+      topGenre ? `• Любимый жанр: ${genreName}` : null,
       topAuthor ? `• Любимый автор: ${topAuthor.name} (${topAuthor.count} ${plural(topAuthor.count, 'книга', 'книги', 'книг')})` : null,
-      topGenre ? `• Главный жанр: #${topGenre.name}` : null,
       bestBook ? `• Книга года: «${bestBook.title}» (${bestBook.author})` : null,
     ]
       .filter(Boolean)
@@ -98,21 +128,12 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
     if (!posterRef.current) return
     try {
       setIsDownloading(true)
-      let dataUrl
-      try {
-        dataUrl = await toPng(posterRef.current, {
-          cacheBust: false,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          skipFonts: true,
-        })
-      } catch (err) {
-        console.warn('First toPng attempt failed, retrying without cacheBust:', err)
-        dataUrl = await toPng(posterRef.current, {
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-        })
-      }
+      const dataUrl = await toPng(posterRef.current, {
+        cacheBust: false,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        skipFonts: true,
+      })
 
       if (dataUrl) {
         const link = document.createElement('a')
@@ -123,11 +144,31 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
         document.body.removeChild(link)
       }
     } catch (err) {
-      console.error('Failed to generate image:', err)
+      console.warn('Export retry fallback:', err)
+      try {
+        const dataUrl = await toPng(posterRef.current, {
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          skipFonts: true,
+          filter: (node) => node.tagName !== 'IMG' || node.src?.startsWith('data:'),
+        })
+        if (dataUrl) {
+          const link = document.createElement('a')
+          link.download = `Книжные_итоги_${selectedYear}_Alevtina.png`
+          link.href = dataUrl
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+      } catch (finalErr) {
+        console.error('Final image export error:', finalErr)
+      }
     } finally {
       setIsDownloading(false)
     }
   }
+
+  const cleanGenreName = topGenre?.name?.replace(/^#/, '')
 
   return (
     <div
@@ -199,82 +240,88 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
               </div>
             </div>
 
-            {/* 4 ключевые метрики года с отступом 4px (gap-1) */}
+            {/* 4 гармоничные карточки в единой сетке 2x2 с отступом ровно 4px (gap-1) */}
             <div className="mt-2 grid grid-cols-2 gap-1">
-              <div className="rounded-2xl bg-white p-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              {/* Карточка 1: Прочитано */}
+              <div className="flex flex-col justify-between rounded-2xl bg-white p-4 min-h-[96px]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
                   ПРОЧИТАНО
                 </span>
-                <p className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight leading-none">{totalBooks}</p>
-                <p className="mt-1 text-xs font-medium text-gray-400">{plural(totalBooks, 'книга', 'книги', 'книг')}</p>
+                <div className="mt-2">
+                  <p className="text-3xl font-extrabold text-gray-900 tracking-tight leading-none">{totalBooks}</p>
+                  <p className="mt-1 text-xs font-medium text-gray-400 truncate">{plural(totalBooks, 'книга за год', 'книги за год', 'книг за год')}</p>
+                </div>
               </div>
 
-              <div className="rounded-2xl bg-white p-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              {/* Карточка 2: Страниц */}
+              <div className="flex flex-col justify-between rounded-2xl bg-white p-4 min-h-[96px]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
+                  СТРАНИЦ
+                </span>
+                <div className="mt-2">
+                  <p className="text-3xl font-extrabold text-gray-900 tracking-tight leading-none">
+                    {totalPages > 0 ? totalPages.toLocaleString('ru-RU') : '0'}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-gray-400 truncate">прочитано страниц</p>
+                </div>
+              </div>
+
+              {/* Карточка 3: Средний балл */}
+              <div className="flex flex-col justify-between rounded-2xl bg-white p-4 min-h-[96px]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
                   СРЕДНИЙ БАЛЛ
                 </span>
-                <p className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight leading-none">{avgRating}</p>
-                <p className="mt-1 text-xs font-medium text-gray-400">из 10 ★</p>
+                <div className="mt-2">
+                  <p className="text-3xl font-extrabold text-gray-900 tracking-tight leading-none">{avgRating}</p>
+                  <p className="mt-1 text-xs font-medium text-gray-400 truncate">из 10 ★</p>
+                </div>
+              </div>
+
+              {/* Карточка 4: Любимый жанр */}
+              <div className="flex flex-col justify-between rounded-2xl bg-white p-4 min-h-[96px]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
+                  ЛЮБИМЫЙ ЖАНР
+                </span>
+                <div className="mt-2">
+                  <p className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight leading-tight truncate">
+                    {cleanGenreName || '—'}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-gray-400 truncate">
+                    {topGenre ? `${topGenre.count} ${plural(topGenre.count, 'книга', 'книги', 'книг')}` : 'нет данных'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Страницы */}
-            {totalPages > 0 ? (
-              <div className="mt-1 flex items-center justify-between rounded-2xl bg-white p-4">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    ПРОЧИТАНО СТРАНИЦ
-                  </span>
-                  <p className="mt-1 text-xl font-extrabold text-gray-900 tracking-tight leading-none">
-                    {totalPages.toLocaleString('ru-RU')} <span className="text-xs font-medium text-gray-400">страниц</span>
+            {/* Карточка 5: Любимый автор */}
+            {topAuthor ? (
+              <div className="mt-1 flex flex-col justify-between rounded-2xl bg-white p-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
+                  ЛЮБИМЫЙ АВТОР
+                </span>
+                <div className="mt-2 flex items-baseline justify-between gap-2">
+                  <p className="text-base sm:text-lg font-extrabold text-gray-900 truncate">
+                    {topAuthor.name}
                   </p>
-                </div>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-700 shrink-0">
-                  <BookOpen size={18} strokeWidth={2} />
+                  <span className="text-xs font-bold text-gray-400 shrink-0">
+                    {topAuthor.count} {plural(topAuthor.count, 'книга за год', 'книги за год', 'книг за год')}
+                  </span>
                 </div>
               </div>
             ) : null}
 
-            {/* Топ автор и Топ жанр */}
-            <div className="mt-1 grid grid-cols-2 gap-1">
-              {topAuthor ? (
-                <div className="rounded-2xl bg-white p-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    ЛЮБИМЫЙ АВТОР
-                  </span>
-                  <p className="mt-1 text-xs font-bold text-gray-900 truncate">{topAuthor.name}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-gray-400">
-                    {topAuthor.count} {plural(topAuthor.count, 'книга', 'книги', 'книг')}
-                  </p>
-                </div>
-              ) : null}
-
-              {topGenre ? (
-                <div className="rounded-2xl bg-white p-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    ЛЮБИМЫЙ ЖАНР
-                  </span>
-                  <p className="mt-1 text-xs font-bold text-gray-900 truncate">#{topGenre.name}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-gray-400">
-                    {topGenre.count} {plural(topGenre.count, 'книга', 'книги', 'книг')}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Главная книга года — стиль премиальной карточки каталога */}
+            {/* Карточка 6: Главная книга года — стиль каталога */}
             {bestBook ? (
-              <div className="mt-1 flex items-center gap-3.5 rounded-2xl bg-white p-4">
+              <div className="mt-1 flex items-center gap-4 rounded-2xl bg-white p-4">
                 {bestBook.coverUrl ? (
                   <img
-                    src={bestBook.coverUrl}
+                    src={coverBase64 || bestBook.coverUrl}
                     alt={bestBook.title}
-                    crossOrigin="anonymous"
-                    className="w-16 sm:w-20 aspect-[2/3] shrink-0 rounded-xl object-cover shadow-2xs bg-gray-100"
+                    className="w-18 sm:w-20 aspect-[2/3] shrink-0 rounded-xl object-cover shadow-2xs bg-gray-100"
                   />
                 ) : (
-                  <div className="w-16 sm:w-20 aspect-[2/3] shrink-0 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
-                    <BookOpen size={22} />
+                  <div className="w-18 sm:w-20 aspect-[2/3] shrink-0 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                    <BookOpen size={24} />
                   </div>
                 )}
                 <div className="min-w-0 flex-1 py-0.5">
@@ -297,13 +344,13 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {bestBook.pages ? (
-                      <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-600">
-                        📄 {bestBook.pages} стр.
+                      <span className="inline-flex items-center rounded-lg bg-gray-50 px-2.5 py-1 text-[10px] font-bold text-gray-600">
+                        {bestBook.pages} стр.
                       </span>
                     ) : null}
                     {bestBook.tags && bestBook.tags[0] ? (
-                      <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-600">
-                        #{bestBook.tags[0]}
+                      <span className="inline-flex items-center rounded-lg bg-gray-50 px-2.5 py-1 text-[10px] font-bold text-gray-600">
+                        {bestBook.tags[0].replace(/^#/, '')}
                       </span>
                     ) : null}
                   </div>

@@ -144,7 +144,7 @@ export function BookDetailModal({ book, onClose, onEdit, onDelete }) {
                       key={tag}
                       className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700"
                     >
-                      #{tag}
+                      {tag.replace(/^#/, '')}
                     </span>
                   ))}
                 </div>
