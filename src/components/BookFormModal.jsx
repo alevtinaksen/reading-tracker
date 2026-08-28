@@ -123,7 +123,6 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
         format: data.format || prev.format || 'paper',
         tags: data.tags?.length ? [...new Set([...prev.tags, ...data.tags])] : prev.tags,
         pages: data.pages || prev.pages,
-        review: data.description ? `Аннотация:\n${data.description}` : prev.review,
       }))
       setImportSuccess(true)
     } catch (err) {

@@ -18,14 +18,27 @@ if (!BOT_TOKEN) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 const bot = new Telegraf(BOT_TOKEN || 'dummy_token')
 
-// Временные данные пользователей: { draft: {...}, state: null | 'edit_title' | 'edit_author' | 'edit_pages', messageId: number, chatId: number }
+// Популярные жанры в библиотеке для быстрого выбора
+const POPULAR_GENRES = [
+  'Детектив',
+  'Триллер',
+  'Психология',
+  'Саморазвитие',
+  'Нон-фикшн',
+  'Роман',
+  'Фантастика',
+  'Классика',
+  'Биография',
+  'Бизнес'
+]
+
+// Сессии пользователей: { draft: {...}, state: null | 'edit_title' | 'edit_author' | 'edit_pages' | 'add_custom_genre' }
 const userSessions = new Map()
 
 // Убираем отчество у авторов
 function stripPatronymic(author) {
   if (!author) return ''
   let cleaned = author.trim()
-  // Убираем лишние префиксы "Автор:", "by" и т.д.
   cleaned = cleaned.replace(/^(?:автор|авторы|by)\s*[:—]?\s*/i, '').trim()
   
   const parts = cleaned.split(/\s+/)
@@ -123,8 +136,7 @@ async function searchBook(query) {
       author: info.authors ? info.authors.join(', ') : '',
       coverUrl: coverUrl,
       pages: info.pageCount || 350,
-      tags: info.categories || ['Художественная литература'],
-      description: info.description || '',
+      tags: info.categories || [],
     }
   } catch (err) {
     console.error('Error searching Google Books:', err)
@@ -146,8 +158,8 @@ async function fetchByUrl(urlStr) {
     let title = ''
     let author = ''
     let coverUrl = ''
-    let description = ''
     let pages = null
+    const tags = []
 
     // 1. Попытка извлечь структурированные данные Schema.org JSON-LD
     $('script[type="application/ld+json"]').each((_, el) => {
@@ -169,7 +181,10 @@ async function fetchByUrl(urlStr) {
             if (!pages && (item.numberOfPages || item.pageCount)) {
               pages = parseInt(item.numberOfPages || item.pageCount, 10)
             }
-            if (!description && item.description) description = item.description
+            if (item.genre) {
+              if (typeof item.genre === 'string') tags.push(item.genre)
+              else if (Array.isArray(item.genre)) tags.push(...item.genre)
+            }
           }
         }
       } catch {}
@@ -190,9 +205,6 @@ async function fetchByUrl(urlStr) {
     }
     if (!coverUrl) {
       coverUrl = $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || ''
-    }
-    if (!description) {
-      description = $('meta[property="og:description"]').attr('content') || ''
     }
 
     // 3. Поиск страниц в тексте, если не найдено
@@ -234,8 +246,7 @@ async function fetchByUrl(urlStr) {
       author: stripPatronymic(author),
       coverUrl,
       pages,
-      tags: [],
-      description
+      tags: [...new Set(tags)],
     }
   } catch (err) {
     console.error('Error fetching URL:', err)
@@ -243,131 +254,236 @@ async function fetchByUrl(urlStr) {
   }
 }
 
-// Генерация клавиатуры с 4 статусами, 3 форматами и кнопками редактирования
-function getDraftKeyboard(draft) {
-  const isWant = draft.status === 'want_to_read'
-  const isReading = draft.status === 'reading'
-  const isRead = draft.status === 'read'
-  const isAbandoned = draft.status === 'abandoned'
+// -------------------------------------------------------------
+// ГЕНЕРАТОРЫ СООБЩЕНИЙ И КЛАВИАТУР (ЧИСТЫЙ UX БЕЗ ПЕРЕГРУЗА)
+// -------------------------------------------------------------
 
-  const isPaper = draft.format === 'paper'
-  const isAudio = draft.format === 'audio'
-  const isEbook = draft.format === 'ebook'
-
-  return Markup.inlineKeyboard([
-    // Ряд 1: Статусы (2x2 для красивого отображения без сжатия текста)
-    [
-      Markup.button.callback(isWant ? '💜 • Хочу читать' : '💜 Хочу читать', 'status_want_to_read'),
-      Markup.button.callback(isReading ? '💙 • В процессе' : '💙 В процессе', 'status_reading'),
-    ],
-    [
-      Markup.button.callback(isRead ? '💚 • Прочитано' : '💚 Прочитано', 'status_read'),
-      Markup.button.callback(isAbandoned ? '💔 • Брошено' : '💔 Брошено', 'status_abandoned'),
-    ],
-    // Ряд 2: Форматы
-    [
-      Markup.button.callback(isPaper ? '📖 • Бумага' : '📖 Бумага', 'format_paper'),
-      Markup.button.callback(isAudio ? '🎧 • Аудио' : '🎧 Аудио', 'format_audio'),
-      Markup.button.callback(isEbook ? '📱 • Электронная' : '📱 Электронная', 'format_ebook'),
-    ],
-    // Ряд 3: Кнопки ручного исправления
-    [
-      Markup.button.callback('✏️ Изм. автора', 'edit_author'),
-      Markup.button.callback('✏️ Изм. название', 'edit_title'),
-      Markup.button.callback('✏️ Изм. страницы', 'edit_pages'),
-    ],
-    // Ряд 4: Сохранение и Отмена
-    [
-      Markup.button.callback('❌ Отменить', 'cancel_book'),
-      Markup.button.callback('✅ Сохранить в библиотеку', 'save_book'),
-    ]
-  ])
-}
-
-function getDraftCaption(draft) {
-  const statusLabels = {
+function getStatusLabel(status) {
+  const map = {
     want_to_read: '💜 Хочу прочитать',
     reading: '💙 В процессе',
     read: '💚 Прочитано',
     abandoned: '💔 Брошено'
   }
-  const formatLabels = {
+  return map[status] || 'Хочу прочитать'
+}
+
+function getFormatLabel(format) {
+  const map = {
     paper: '📖 Бумага',
     audio: '🎧 Аудио',
     ebook: '📱 Электронная'
   }
+  return map[format] || 'Бумага'
+}
+
+// Карточка описания книги
+function getDraftCaption(draft) {
+  const genresText = draft.tags && draft.tags.length > 0 ? draft.tags.join(', ') : 'Не выбраны'
 
   return (
     `📖 *${draft.title}*\n` +
     `✍️ Автор: *${draft.author || 'Не указан'}*\n` +
     `📄 Страниц: *${draft.pages}*\n` +
-    `📌 Статус: *${statusLabels[draft.status] || draft.status}*\n` +
-    `📦 Формат: *${formatLabels[draft.format] || draft.format}*\n\n` +
-    `_Выберите параметры или нажмите «✏️ Изм. автора / название», если нужно скорректировать._`
+    `🏷 Жанры: *${genresText}*\n` +
+    `📌 Статус: *${getStatusLabel(draft.status)}*\n` +
+    `📦 Формат: *${getFormatLabel(draft.format)}*`
   )
 }
 
-// Команда /start
+// 1. Главное меню (Компактное: всего 3 аккуратных ряда кнопок!)
+function getMainKeyboard(draft) {
+  const genreCount = draft.tags?.length || 0
+  const genreLabel = genreCount > 0 ? `🏷 Жанры (${genreCount})` : '🏷 Выбрать жанр'
+
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
+      Markup.button.callback(`📦 ${getFormatLabel(draft.format)}`, 'open_format_menu'),
+    ],
+    [
+      Markup.button.callback(genreLabel, 'open_genres_menu'),
+      Markup.button.callback('✏️ Изменить данные', 'open_edit_menu'),
+    ],
+    [
+      Markup.button.callback('❌ Отменить', 'cancel_book'),
+      Markup.button.callback('✅ Сохранить', 'save_book'),
+    ]
+  ])
+}
+
+// 2. Подменю: Статус
+function getStatusKeyboard(draft) {
+  const items = [
+    { key: 'want_to_read', label: '💜 Хочу прочитать' },
+    { key: 'reading', label: '💙 В процессе' },
+    { key: 'read', label: '💚 Прочитано' },
+    { key: 'abandoned', label: '💔 Брошено' },
+  ]
+
+  const buttons = items.map((item) => {
+    const isSelected = draft.status === item.key
+    return [Markup.button.callback(`${isSelected ? '✓ ' : ''}${item.label}`, `set_status_${item.key}`)]
+  })
+
+  buttons.push([Markup.button.callback('« Назад к карточке', 'back_to_main')])
+  return Markup.inlineKeyboard(buttons)
+}
+
+// 3. Подменю: Формат
+function getFormatKeyboard(draft) {
+  const items = [
+    { key: 'paper', label: '📖 Бумага' },
+    { key: 'audio', label: '🎧 Аудио' },
+    { key: 'ebook', label: '📱 Электронная' },
+  ]
+
+  const buttons = items.map((item) => {
+    const isSelected = draft.format === item.key
+    return [Markup.button.callback(`${isSelected ? '✓ ' : ''}${item.label}`, `set_format_${item.key}`)]
+  })
+
+  buttons.push([Markup.button.callback('« Назад к карточке', 'back_to_main')])
+  return Markup.inlineKeyboard(buttons)
+}
+
+// 4. Подменю: Жанры
+function getGenresKeyboard(draft) {
+  const activeTags = new Set(draft.tags || [])
+  const rows = []
+
+  for (let i = 0; i < POPULAR_GENRES.length; i += 2) {
+    const g1 = POPULAR_GENRES[i]
+    const g2 = POPULAR_GENRES[i + 1]
+
+    const b1 = Markup.button.callback(`${activeTags.has(g1) ? '✓ ' : '◻️ '}${g1}`, `toggle_genre_${g1}`)
+    const row = [b1]
+
+    if (g2) {
+      const b2 = Markup.button.callback(`${activeTags.has(g2) ? '✓ ' : '◻️ '}${g2}`, `toggle_genre_${g2}`)
+      row.push(b2)
+    }
+    rows.push(row)
+  }
+
+  // Дополнительные пользовательские жанры (если они добавлены)
+  const customTags = (draft.tags || []).filter((t) => !POPULAR_GENRES.includes(t))
+  if (customTags.length > 0) {
+    for (const ct of customTags) {
+      rows.push([Markup.button.callback(`✓ ${ct} (нажмите чтобы убрать)`, `toggle_genre_${ct}`)])
+    }
+  }
+
+  rows.push([
+    Markup.button.callback('➕ Свой жанр', 'add_custom_genre_prompt'),
+    Markup.button.callback('« Готово (Назад)', 'back_to_main')
+  ])
+
+  return Markup.inlineKeyboard(rows)
+}
+
+// 5. Подменю: Редактирование
+function getEditKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('✏️ Изменить название', 'prompt_edit_title'),
+      Markup.button.callback('✏️ Изменить автора', 'prompt_edit_author'),
+    ],
+    [
+      Markup.button.callback('📄 Изменить количество страниц', 'prompt_edit_pages'),
+    ],
+    [
+      Markup.button.callback('« Назад к карточке', 'back_to_main'),
+    ]
+  ])
+}
+
+// Хелпер обновления карточки в Telegram
+async function renderCard(ctx, draft, keyboard) {
+  const caption = getDraftCaption(draft)
+  try {
+    if (ctx.callbackQuery) {
+      await ctx.editMessageCaption(caption, {
+        parse_mode: 'Markdown',
+        ...keyboard
+      })
+    } else {
+      if (draft.coverUrl) {
+        await ctx.replyWithPhoto(draft.coverUrl, {
+          caption,
+          parse_mode: 'Markdown',
+          ...keyboard
+        })
+      } else {
+        await ctx.replyWithMarkdown(caption, keyboard)
+      }
+    }
+  } catch {
+    try {
+      await ctx.editMessageText(caption, {
+        parse_mode: 'Markdown',
+        ...keyboard
+      })
+    } catch {}
+  }
+}
+
+// -------------------------------------------------------------
+// ОБРАБОТКА КОМАНД И ВХОДЯЩИХ СООБЩЕНИЙ
+// -------------------------------------------------------------
+
 bot.start((ctx) => {
   ctx.replyWithMarkdown(
-    `👋 *Привет! Я твой персональный книжный ассистент.* 📚\n\n` +
+    `👋 *Привет! Я твой книжный бот-ассистент.* 📚\n\n` +
     `Отправь мне со смартфона:\n` +
     `1. 🔗 *Ссылку на книгу* (с ЛитРес, Читай-Города, LiveLib или Лабиринта)\n` +
     `2. ✍️ *Название книги и автора* (например: \`Джон Грэй Мужчины с Марса\`)\n\n` +
-    `Я найду обложку, автора, страницы и добавлю прямо в трекер!\n\n` +
-    `🌐 *Твой трекер:* https://reading-tracker-ten-rho.vercel.app/`
+    `Я сам найду обложку, автора, страницы и жанры!\n\n` +
+    `🌐 *Твой трекер онлайн:* https://reading-tracker-ten-rho.vercel.app/`
   )
 })
 
-// Обработка входящего текста (ссылка, поиск или ручной ввод поля)
+// Обработка текстовых сообщений
 bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim()
   const userId = ctx.from.id
   const session = userSessions.get(userId)
 
-  // 1. Проверяем, ожидает ли бот ручного ввода поля
+  // 1. Если бот ожидает ручного ввода поля
   if (session && session.state) {
     const draft = session.draft
     if (session.state === 'edit_author') {
       draft.author = stripPatronymic(text)
-      await ctx.reply(`✅ Автор изменен на: «*${draft.author}*»`, { parse_mode: 'Markdown' })
+      await ctx.reply(`✅ Автор обновлён: «*${draft.author}*»`, { parse_mode: 'Markdown' })
     } else if (session.state === 'edit_title') {
       draft.title = text
-      await ctx.reply(`✅ Название изменено на: «*${draft.title}*»`, { parse_mode: 'Markdown' })
+      await ctx.reply(`✅ Название обновлено: «*${draft.title}*»`, { parse_mode: 'Markdown' })
     } else if (session.state === 'edit_pages') {
       const num = parseInt(text.replace(/\D/g, ''), 10)
       if (num && num > 0) {
         draft.pages = num
         await ctx.reply(`✅ Количество страниц: *${draft.pages}*`, { parse_mode: 'Markdown' })
       } else {
-        return ctx.reply('Пожалуйста, введите число (например, `320`).')
+        return ctx.reply('Пожалуйста, укажите количество страниц числом (например, `320`).')
+      }
+    } else if (session.state === 'add_custom_genre') {
+      const genre = text.replace(/^#/, '').trim()
+      if (genre) {
+        if (!draft.tags) draft.tags = []
+        if (!draft.tags.includes(genre)) draft.tags.push(genre)
+        await ctx.reply(`✅ Добавлен жанр: «*${genre}*»`, { parse_mode: 'Markdown' })
       }
     }
 
     session.state = null
     userSessions.set(userId, session)
 
-    // Обновляем карточку с книгой
-    const caption = getDraftCaption(draft)
-    const keyboard = getDraftKeyboard(draft)
-
-    if (draft.coverUrl) {
-      try {
-        await ctx.replyWithPhoto(draft.coverUrl, {
-          caption,
-          parse_mode: 'Markdown',
-          ...keyboard
-        })
-      } catch {
-        await ctx.replyWithMarkdown(caption, keyboard)
-      }
-    } else {
-      await ctx.replyWithMarkdown(caption, keyboard)
-    }
+    // Показываем обновленную главную карточку
+    await renderCard(ctx, draft, getMainKeyboard(draft))
     return
   }
 
-  // 2. Если обычное сообщение — ищем или парсим книгу
+  // 2. Обычное сообщение: парсинг ссылки или поиск книги
   await ctx.sendChatAction('typing')
 
   let bookData = null
@@ -380,7 +496,7 @@ bot.on('text', async (ctx) => {
   }
 
   if (!bookData || !bookData.title) {
-    return ctx.reply('😔 Не удалось найти книгу. Попробуйте ввести «Автор Название» точнее.')
+    return ctx.reply('😔 Не удалось найти книгу. Попробуйте написать «Автор Название» точнее.')
   }
 
   const draft = {
@@ -392,140 +508,137 @@ bot.on('text', async (ctx) => {
     format: 'paper',
     rating: null,
     tags: bookData.tags || [],
-    review: bookData.description ? `Аннотация:\n${bookData.description.slice(0, 300)}...` : ''
+    review: null // Отзыв никогда не заполняется автоматически
   }
 
   userSessions.set(userId, { draft, state: null })
-
-  const caption = getDraftCaption(draft)
-  const keyboard = getDraftKeyboard(draft)
-
-  if (draft.coverUrl) {
-    try {
-      await ctx.replyWithPhoto(draft.coverUrl, {
-        caption,
-        parse_mode: 'Markdown',
-        ...keyboard
-      })
-    } catch {
-      await ctx.replyWithMarkdown(caption, keyboard)
-    }
-  } else {
-    await ctx.replyWithMarkdown(caption, keyboard)
-  }
+  await renderCard(ctx, draft, getMainKeyboard(draft))
 })
 
-// Кнопка: редактировать автора
-bot.action('edit_author', async (ctx) => {
-  const userId = ctx.from.id
-  const session = userSessions.get(userId)
-  if (!session || !session.draft) return ctx.answerCbQuery('Сессия устарела.')
+// -------------------------------------------------------------
+// ИНТЕРАКТИВНЫЕ ДЕЙСТВИЯ (CALLBACK QUERIES)
+// -------------------------------------------------------------
 
-  session.state = 'edit_author'
-  userSessions.set(userId, session)
+// Открыть подменю статуса
+bot.action('open_status_menu', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getStatusKeyboard(session.draft))
+})
+
+// Выбор статуса
+bot.action(/^set_status_(.+)$/, async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.draft.status = ctx.match[1]
+  await ctx.answerCbQuery(`Выбрано: ${getStatusLabel(session.draft.status)}`)
+  // Возвращаем в главное меню с обновленным статусом
+  await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
+})
+
+// Открыть подменю формата
+bot.action('open_format_menu', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getFormatKeyboard(session.draft))
+})
+
+// Выбор формата
+bot.action(/^set_format_(.+)$/, async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.draft.format = ctx.match[1]
+  await ctx.answerCbQuery(`Выбран формат: ${getFormatLabel(session.draft.format)}`)
+  // Возвращаем в главное меню с обновленным форматом
+  await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
+})
+
+// Открыть подменю жанров
+bot.action('open_genres_menu', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getGenresKeyboard(session.draft))
+})
+
+// Переключение жанра (toggle checkbox)
+bot.action(/^toggle_genre_(.+)$/, async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+
+  const genre = ctx.match[1]
+  if (!session.draft.tags) session.draft.tags = []
+
+  if (session.draft.tags.includes(genre)) {
+    session.draft.tags = session.draft.tags.filter((t) => t !== genre)
+    await ctx.answerCbQuery(`Убран жанр: ${genre}`)
+  } else {
+    session.draft.tags.push(genre)
+    await ctx.answerCbQuery(`Добавлен жанр: ${genre}`)
+  }
+
+  // Обновляем клавиатуру выбора жанров с актуальными галочками
+  await renderCard(ctx, session.draft, getGenresKeyboard(session.draft))
+})
+
+// Промпт для ввода своего жанра
+bot.action('add_custom_genre_prompt', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.state = 'add_custom_genre'
+  userSessions.set(ctx.from.id, session)
 
   await ctx.answerCbQuery()
-  await ctx.reply('✍️ *Напишите имя и фамилию автора* в ответном сообщении:', { parse_mode: 'Markdown' })
+  await ctx.reply('🏷 *Напишите свой жанр* в ответном сообщении:', { parse_mode: 'Markdown' })
 })
 
-// Кнопка: редактировать название
-bot.action('edit_title', async (ctx) => {
-  const userId = ctx.from.id
-  const session = userSessions.get(userId)
-  if (!session || !session.draft) return ctx.answerCbQuery('Сессия устарела.')
+// Открыть меню редактирования
+bot.action('open_edit_menu', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getEditKeyboard())
+})
 
+// Промпты для редактирования полей
+bot.action('prompt_edit_title', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
   session.state = 'edit_title'
-  userSessions.set(userId, session)
-
+  userSessions.set(ctx.from.id, session)
   await ctx.answerCbQuery()
   await ctx.reply('✍️ *Напишите точное название книги* в ответном сообщении:', { parse_mode: 'Markdown' })
 })
 
-// Кнопка: редактировать страницы
-bot.action('edit_pages', async (ctx) => {
-  const userId = ctx.from.id
-  const session = userSessions.get(userId)
-  if (!session || !session.draft) return ctx.answerCbQuery('Сессия устарела.')
+bot.action('prompt_edit_author', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.state = 'edit_author'
+  userSessions.set(ctx.from.id, session)
+  await ctx.answerCbQuery()
+  await ctx.reply('✍️ *Напишите имя и фамилию автора* в ответном сообщении:', { parse_mode: 'Markdown' })
+})
 
+bot.action('prompt_edit_pages', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
   session.state = 'edit_pages'
-  userSessions.set(userId, session)
-
+  userSessions.set(ctx.from.id, session)
   await ctx.answerCbQuery()
   await ctx.reply('📄 *Введите количество страниц* (числом):', { parse_mode: 'Markdown' })
 })
 
-// Обработка 4 статусов
-bot.action(/^status_(.+)$/, async (ctx) => {
-  const newStatus = ctx.match[1]
-  const userId = ctx.from.id
-  const session = userSessions.get(userId)
-  if (!session || !session.draft) return ctx.answerCbQuery('Сессия устарела.')
-
-  session.draft.status = newStatus
-  userSessions.set(userId, session)
-
-  const statusNames = {
-    want_to_read: 'Хочу прочитать',
-    reading: 'В процессе',
-    read: 'Прочитано',
-    abandoned: 'Брошено'
-  }
-
-  await ctx.answerCbQuery(`Выбрано: ${statusNames[newStatus] || newStatus}`)
-
-  try {
-    const caption = getDraftCaption(session.draft)
-    const keyboard = getDraftKeyboard(session.draft)
-    await ctx.editMessageCaption(caption, {
-      parse_mode: 'Markdown',
-      ...keyboard
-    })
-  } catch {
-    try {
-      await ctx.editMessageText(getDraftCaption(session.draft), {
-        parse_mode: 'Markdown',
-        ...getDraftKeyboard(session.draft)
-      })
-    } catch {}
-  }
+// Кнопка возврата в главное меню
+bot.action('back_to_main', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
 })
 
-// Обработка 3 форматов
-bot.action(/^format_(.+)$/, async (ctx) => {
-  const newFormat = ctx.match[1]
-  const userId = ctx.from.id
-  const session = userSessions.get(userId)
-  if (!session || !session.draft) return ctx.answerCbQuery('Сессия устарела.')
-
-  session.draft.format = newFormat
-  userSessions.set(userId, session)
-
-  const formatNames = {
-    paper: 'Бумага',
-    audio: 'Аудио',
-    ebook: 'Электронная'
-  }
-
-  await ctx.answerCbQuery(`Формат: ${formatNames[newFormat] || newFormat}`)
-
-  try {
-    const caption = getDraftCaption(session.draft)
-    const keyboard = getDraftKeyboard(session.draft)
-    await ctx.editMessageCaption(caption, {
-      parse_mode: 'Markdown',
-      ...keyboard
-    })
-  } catch {
-    try {
-      await ctx.editMessageText(getDraftCaption(session.draft), {
-        parse_mode: 'Markdown',
-        ...getDraftKeyboard(session.draft)
-      })
-    } catch {}
-  }
-})
-
-// Отмена добавления книги
+// Кнопка отмены
 bot.action('cancel_book', async (ctx) => {
   const userId = ctx.from.id
   const session = userSessions.get(userId)
@@ -573,18 +686,22 @@ bot.action('save_book', async (ctx) => {
       pages: draft.pages,
       read_month: readMonth,
       read_year: readYear,
-      review: draft.review || null
+      review: null // Отзыв пустой для личных заметок пользователя
     })
 
     if (insertError) throw insertError
 
-    await syncBookTags(bookId, draft.tags)
+    await syncBookTags(bookId, draft.tags || [])
 
     userSessions.delete(userId)
 
+    const genresText = draft.tags && draft.tags.length > 0 ? `\n🏷 Жанры: ${draft.tags.join(', ')}` : ''
+
     await ctx.replyWithMarkdown(
       `🎉 *Книга «${draft.title}» (${draft.author || 'Без автора'}) успешно добавлена в библиотеку!*\n\n` +
-      `📄 Страниц: *${draft.pages}*\n` +
+      `📌 Статус: ${getStatusLabel(draft.status)}\n` +
+      `📦 Формат: ${getFormatLabel(draft.format)}\n` +
+      `📄 Страниц: *${draft.pages}*${genresText}\n\n` +
       `🌐 Открыть в трекере:\nhttps://reading-tracker-ten-rho.vercel.app/`
     )
   } catch (err) {
@@ -593,10 +710,10 @@ bot.action('save_book', async (ctx) => {
   }
 })
 
-// Экспорт для запуска
+// Запуск бота
 export async function startBot() {
   if (!BOT_TOKEN || BOT_TOKEN === 'dummy_token') {
-    console.log('Telegram Bot Token не задан. Бот ожидает токен.')
+    console.log('Telegram Bot Token не задан.')
     return
   }
   try {
