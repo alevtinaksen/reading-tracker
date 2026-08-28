@@ -106,6 +106,22 @@ export function BookCard({
             onClick={handleCardClick}
             className="group relative flex w-full cursor-pointer flex-row items-stretch rounded-[20px] bg-white p-3 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none gap-3 hover:bg-gray-50/80"
           >
+            {/* Меню действий в верхнем правом углу карточки */}
+            <div ref={mobileMenuRef} className="absolute top-3 right-3 z-10">
+              <button
+                type="button"
+                aria-label="Действия"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleMenu(menuOpen ? null : book.id)
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              {menuOpen ? renderActionMenu() : null}
+            </div>
+
             {/* Обложка слева */}
             <div className="relative w-[70px] h-[102px] shrink-0 overflow-hidden rounded-[14px] bg-gray-100">
               {showCover ? (
@@ -124,32 +140,17 @@ export function BookCard({
 
             {/* Текстовая информация справа */}
             <div className="min-w-0 flex-1 flex flex-col justify-between self-stretch">
-              {/* Верхняя строка: статус слева (по верхнему краю обложки), меню справа */}
-              <div className="flex items-start justify-between gap-1">
+              {/* Верхняя строка: статус слева строго вровень с верхом обложки */}
+              <div className="flex items-start">
                 <span
                   className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
                 >
                   {statusLabel(book.status)}
                 </span>
-
-                <div ref={mobileMenuRef} className="relative shrink-0 -mr-1 -mt-1">
-                  <button
-                    type="button"
-                    aria-label="Действия"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      onToggleMenu(menuOpen ? null : book.id)
-                    }}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
-                  >
-                    <MoreHorizontal size={16} />
-                  </button>
-                  {menuOpen ? renderActionMenu() : null}
-                </div>
               </div>
 
-              {/* Нижняя часть: Название и автор (выровнены по низу обложки) + дата справа под тремя точками */}
-              <div className="flex items-end justify-between gap-2">
+              {/* Нижняя часть: Название и автор слева + дата справа (строго выровнены по нижнему краю обложки и по правой границе трёх точек) */}
+              <div className="flex items-baseline justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <h4 className="font-extrabold text-[14px] leading-snug text-gray-900 line-clamp-2">
                     {book.title}
@@ -160,7 +161,7 @@ export function BookCard({
                 </div>
 
                 {period ? (
-                  <span className="text-[11px] font-medium text-gray-400 shrink-0 pb-0.5 text-right">
+                  <span className="text-[11px] font-medium text-gray-400 shrink-0 text-right leading-none">
                     {period}
                   </span>
                 ) : null}

@@ -180,7 +180,7 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto bg-black/50 p-0 sm:p-4 backdrop-blur-xs transition-opacity"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-xs overflow-hidden transition-opacity duration-200"
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
@@ -188,7 +188,7 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-lg flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-[32px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)] max-h-[92vh] sm:max-h-[88vh] animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-200"
+        className="relative w-full max-w-lg flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-[32px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)] max-h-[85dvh] sm:max-h-[88vh] animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-200"
       >
         {/* Индикатор свайпа для мобильных */}
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-gray-300 sm:hidden" />
