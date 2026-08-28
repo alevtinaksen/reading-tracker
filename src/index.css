@@ -27,3 +27,8 @@ button:not(:disabled),
 select {
   cursor: pointer;
 }
+
+/* Гарантированный отступ снэкбара строго над нижним меню на мобилке */
+[data-sonner-toaster][data-y-position="bottom"] {
+  bottom: max(5.8rem, calc(env(safe-area-inset-bottom) + 5rem)) !important;
+}
