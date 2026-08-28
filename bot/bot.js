@@ -281,7 +281,9 @@ function getFormatLabel(format) {
 function getDraftCaption(draft) {
   const genresText = draft.tags && draft.tags.length > 0 ? draft.tags.join(', ') : 'Не выбраны'
   const isWant = draft.status === 'want_to_read'
+  const isRead = draft.status === 'read'
   const formatLine = !isWant ? `\n📦 Формат: *${getFormatLabel(draft.format)}*` : ''
+  const ratingLine = isRead ? `\n⭐ Оценка: *${draft.rating != null ? draft.rating + ' / 10' : 'Без оценки'}*` : ''
 
   return (
     `📖 *${draft.title}*\n` +
@@ -289,15 +291,36 @@ function getDraftCaption(draft) {
     `📄 Страниц: *${draft.pages}*\n` +
     `🏷 Жанры: *${genresText}*\n` +
     `📌 Статус: *${getStatusLabel(draft.status)}*` +
-    formatLine
+    formatLine +
+    ratingLine
   )
 }
 
-// 1. Главное меню (Компактное: всего 3 аккуратных ряда кнопок!)
+// 1. Главное меню
 function getMainKeyboard(draft) {
   const genreCount = draft.tags?.length || 0
   const genreLabel = genreCount > 0 ? `🏷 Жанры (${genreCount})` : '🏷 Выбрать жанр'
   const isWant = draft.status === 'want_to_read'
+  const isRead = draft.status === 'read'
+
+  if (isRead) {
+    const ratingLabel = draft.rating != null ? `⭐ Оценка: ${draft.rating} ★` : '⭐ Поставить оценку'
+    return Markup.inlineKeyboard([
+      [
+        Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
+        Markup.button.callback(`📦 ${getFormatLabel(draft.format)}`, 'open_format_menu'),
+      ],
+      [
+        Markup.button.callback(ratingLabel, 'open_rating_menu'),
+        Markup.button.callback(genreLabel, 'open_genres_menu'),
+      ],
+      [
+        Markup.button.callback('✏️ Изменить', 'open_edit_menu'),
+        Markup.button.callback('❌ Отменить', 'cancel_book'),
+        Markup.button.callback('✅ Сохранить', 'save_book'),
+      ]
+    ])
+  }
 
   const firstRow = isWant
     ? [Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu')]
@@ -335,6 +358,22 @@ function getStatusKeyboard(draft) {
 
   buttons.push([Markup.button.callback('« Назад к карточке', 'back_to_main')])
   return Markup.inlineKeyboard(buttons)
+}
+
+// 3. Подменю: Оценка (для прочитанных книг)
+function getRatingKeyboard(draft) {
+  const row1 = [1, 2, 3, 4, 5].map((n) =>
+    Markup.button.callback(`${draft.rating === n ? '✓ ' : ''}${n} ★`, `set_rating_${n}`)
+  )
+  const row2 = [6, 7, 8, 9, 10].map((n) =>
+    Markup.button.callback(`${draft.rating === n ? '✓ ' : ''}${n} ★`, `set_rating_${n}`)
+  )
+  const row3 = [
+    Markup.button.callback(`${draft.rating == null ? '✓ ' : ''}⚪️ Без оценки`, 'set_rating_null'),
+    Markup.button.callback('« Назад к карточке', 'back_to_main'),
+  ]
+
+  return Markup.inlineKeyboard([row1, row2, row3])
 }
 
 // 3. Подменю: Формат
@@ -544,6 +583,24 @@ bot.action(/^set_status_(.+)$/, async (ctx) => {
   await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
 })
 
+// Открыть подменю оценки
+bot.action('open_rating_menu', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getRatingKeyboard(session.draft))
+})
+
+// Выбор оценки
+bot.action(/^set_rating_(.+)$/, async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  const val = ctx.match[1]
+  session.draft.rating = val === 'null' ? null : Number(val)
+  await ctx.answerCbQuery(session.draft.rating ? `Оценка: ${session.draft.rating} ★` : 'Без оценки')
+  await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
+})
+
 // Открыть подменю формата
 bot.action('open_format_menu', async (ctx) => {
   const session = userSessions.get(ctx.from.id)
@@ -705,11 +762,13 @@ bot.action('save_book', async (ctx) => {
 
     const genresText = draft.tags && draft.tags.length > 0 ? `\n🏷 Жанры: ${draft.tags.join(', ')}` : ''
     const formatSuccessLine = !isWant ? `\n📦 Формат: ${getFormatLabel(draft.format)}` : ''
+    const ratingSuccessLine = draft.status === 'read' && draft.rating != null ? `\n⭐ Оценка: *${draft.rating} / 10*` : ''
 
     await ctx.replyWithMarkdown(
       `🎉 *Книга «${draft.title}» (${draft.author || 'Без автора'}) успешно добавлена в библиотеку!*\n\n` +
       `📌 Статус: ${getStatusLabel(draft.status)}` +
       formatSuccessLine +
+      ratingSuccessLine +
       `\n📄 Страниц: *${draft.pages}*${genresText}\n\n` +
       `🌐 Открыть в трекере:\nhttps://reading-tracker-ten-rho.vercel.app/`
     )
