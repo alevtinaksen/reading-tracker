@@ -25,10 +25,11 @@ export function BookCard({
   onMarkRead,
   onQuickRate,
   onDelete,
-  viewMode = 'grid',
+  viewMode = 'list',
 }) {
   const [coverFailed, setCoverFailed] = useState(false)
-  const menuRef = useRef(null)
+  const desktopMenuRef = useRef(null)
+  const mobileMenuRef = useRef(null)
   const showCover = Boolean(book.coverUrl) && !coverFailed
   const period = formatReadPeriod(book)
   const hasRating = book.rating != null && book.status !== STATUS.wantToRead
@@ -36,7 +37,9 @@ export function BookCard({
   useEffect(() => {
     if (!menuOpen) return undefined
     function onPointer(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      const insideDesktop = desktopMenuRef.current?.contains(event.target)
+      const insideMobile = mobileMenuRef.current?.contains(event.target)
+      if (!insideDesktop && !insideMobile) {
         onToggleMenu(null)
       }
     }
@@ -49,10 +52,10 @@ export function BookCard({
   }
 
   // Общее выпадающее меню действий
-  const actionMenu = menuOpen ? (
+  const renderActionMenu = () => (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute top-8 right-0 w-56 rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_20px_55px_rgba(0,0,0,0.18)] z-50 animate-in fade-in zoom-in-95 duration-100"
+      className="absolute top-8 right-0 w-56 sm:w-60 rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_20px_55px_rgba(0,0,0,0.18)] z-50 animate-in fade-in zoom-in-95 duration-100"
     >
       <div className="space-y-0.5">
         <MenuItem
@@ -66,9 +69,9 @@ export function BookCard({
         </MenuItem>
 
         {book.status === STATUS.read && (
-          <div className="my-1.5 rounded-xl bg-gray-50/90 p-2 border border-gray-100">
+          <div className="my-1.5 rounded-xl bg-gray-50/90 p-2 sm:p-2.5 border border-gray-100">
             <div className="flex items-center justify-between mb-1.5 px-0.5">
-              <span className="text-[10px] font-bold text-gray-800 flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-bold text-gray-800 flex items-center gap-1">
                 <Star
                   size={11}
                   className={book.rating ? 'fill-gray-900 text-gray-900' : 'text-gray-400'}
@@ -77,7 +80,9 @@ export function BookCard({
               </span>
               {book.rating != null ? (
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-extrabold text-gray-900">{book.rating} / 10</span>
+                  <span className="text-[10px] sm:text-[11px] font-extrabold text-gray-900">
+                    {book.rating} / 10
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -105,7 +110,7 @@ export function BookCard({
                       onToggleMenu(null)
                       if (onQuickRate) onQuickRate(book.id, num)
                     }}
-                    className={`flex h-5.5 items-center justify-center rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    className={`flex h-5.5 sm:h-6 items-center justify-center rounded text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-gray-900 text-white shadow-xs'
                         : 'bg-white text-gray-700 hover:bg-gray-200'
@@ -143,46 +148,95 @@ export function BookCard({
         </MenuItem>
       </div>
     </div>
-  ) : null
+  )
 
-  // 1. РЕЖИМ «СПИСКОМ» (HORIZONTAL ROW CARD)
-  if (viewMode === 'list') {
-    return (
-      <article
-        onClick={handleCardClick}
-        className="group relative flex w-full cursor-pointer flex-row items-center rounded-[20px] bg-white p-3 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none gap-3 hover:bg-gray-50/80"
-      >
-        {/* Обложка слева */}
-        <div className="relative w-[70px] h-[102px] sm:w-[76px] sm:h-[110px] shrink-0 overflow-hidden rounded-[14px] bg-gray-100">
-          {showCover ? (
-            <img
-              src={book.coverUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onError={() => setCoverFailed(true)}
-            />
-          ) : (
-            <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-300">
-              <span className="text-xl font-bold">📖</span>
+  return (
+    <>
+      {/* =========================================================================
+          1. МОБИЛЬНАЯ ВЕРСИЯ КАРТОЧКИ (lg:hidden)
+          - Сверху: тег статуса («Прочитано», «Хочу прочитать» и т.д.) и меню ···
+          - Снизу: название и автор книги
+          ========================================================================= */}
+      <div className="lg:hidden w-full">
+        {viewMode === 'list' ? (
+          /* Мобильный список (горизонтальная карточка) */
+          <article
+            onClick={handleCardClick}
+            className="group relative flex w-full cursor-pointer flex-row items-center rounded-[20px] bg-white p-3 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none gap-3 hover:bg-gray-50/80"
+          >
+            {/* Обложка слева */}
+            <div className="relative w-[70px] h-[102px] shrink-0 overflow-hidden rounded-[14px] bg-gray-100">
+              {showCover ? (
+                <img
+                  src={book.coverUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={() => setCoverFailed(true)}
+                />
+              ) : (
+                <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-300">
+                  <span className="text-xl font-bold">📖</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Текстовая информация */}
-        <div className="min-w-0 flex-1 flex flex-col justify-between self-stretch py-0.5">
-          {/* Верхняя строка: статус + дата + меню */}
-          <div className="flex items-center justify-between gap-1">
-            <span
-              className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
-            >
-              {statusLabel(book.status)}
-            </span>
+            {/* Текстовая информация справа */}
+            <div className="min-w-0 flex-1 flex flex-col justify-between self-stretch py-0.5">
+              {/* Верхняя строка: статус слева, дата + меню справа */}
+              <div className="flex items-center justify-between gap-1">
+                <span
+                  className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+                >
+                  {statusLabel(book.status)}
+                </span>
 
-            <div className="flex items-center gap-1 shrink-0">
-              {period ? (
-                <span className="text-[11px] font-medium text-gray-400 mr-1">{period}</span>
-              ) : null}
-              <div ref={menuRef} className="relative">
+                <div className="flex items-center gap-1 shrink-0">
+                  {period ? (
+                    <span className="text-[11px] font-medium text-gray-400 mr-1">{period}</span>
+                  ) : null}
+                  <div ref={mobileMenuRef} className="relative">
+                    <button
+                      type="button"
+                      aria-label="Действия"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onToggleMenu(menuOpen ? null : book.id)
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                    {menuOpen ? renderActionMenu() : null}
+                  </div>
+                </div>
+              </div>
+
+              {/* Название и автор снизу */}
+              <div className="mt-1">
+                <h4 className="font-extrabold text-[14px] leading-snug text-gray-900 line-clamp-2">
+                  {book.title}
+                </h4>
+                <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
+                  {book.author || 'Автор не указан'}
+                </p>
+              </div>
+            </div>
+          </article>
+        ) : (
+          /* Мобильная сетка (вертикальная карточка для 2 колонок) */
+          <article
+            onClick={handleCardClick}
+            className="group relative flex w-full cursor-pointer flex-col justify-between items-stretch rounded-[22px] bg-white p-3.5 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[290px]"
+          >
+            {/* Верхняя часть: Статус + Меню действий */}
+            <div className="flex items-center justify-between gap-1">
+              <span
+                className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+              >
+                {statusLabel(book.status)}
+              </span>
+
+              <div ref={mobileMenuRef} className="relative">
                 <button
                   type="button"
                   aria-label="Действия"
@@ -194,40 +248,54 @@ export function BookCard({
                 >
                   <MoreHorizontal size={16} />
                 </button>
-                {actionMenu}
+                {menuOpen ? renderActionMenu() : null}
               </div>
             </div>
-          </div>
 
-          {/* Название и автор снизу */}
-          <div className="mt-1">
-            <h4 className="font-extrabold text-[14px] sm:text-[15px] leading-snug text-gray-900 line-clamp-2">
-              {book.title}
-            </h4>
-            <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
-              {book.author || 'Автор не указан'}
-            </p>
-          </div>
-        </div>
-      </article>
-    )
-  }
+            {/* Обложка по центру */}
+            <div className="my-auto flex justify-center py-1">
+              <div className="relative h-[135px] w-[92px] overflow-hidden rounded-[13px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.10)]">
+                {showCover ? (
+                  <img
+                    src={book.coverUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={() => setCoverFailed(true)}
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
+                    <span className="text-xl">📖</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
-  // 2. РЕЖИМ «КАРТОЧКАМИ / СЕТКОЙ» (VERTICAL GRID CARD)
-  return (
-    <article
-      onClick={handleCardClick}
-      className="group relative flex w-full cursor-pointer flex-col justify-between items-stretch rounded-[22px] sm:rounded-[25px] bg-white p-3.5 sm:p-[20px] text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[290px] sm:h-[340px]"
-    >
-      {/* Верхняя часть: Статус + Меню действий */}
-      <div className="flex items-center justify-between gap-1">
-        <span
-          className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
-        >
-          {statusLabel(book.status)}
-        </span>
+            {/* Нижняя часть: Название и автор */}
+            <div className="flex flex-col items-start pt-1">
+              <h3 className="w-full truncate text-[14px] font-bold leading-tight text-gray-900">
+                {book.title}
+              </h3>
+              <p className="mt-0.5 w-full truncate text-[12px] font-medium text-gray-400">
+                {book.author || 'Автор не указан'}
+              </p>
+            </div>
+          </article>
+        )}
+      </div>
 
-        <div ref={menuRef} className="relative">
+      {/* =========================================================================
+          2. ДЕСКТОПНАЯ ВЕРСИЯ КАРТОЧКИ (hidden lg:flex)
+          - Полный классический дизайн:
+            * Сверху: Название книги + Автор + кнопка действий ···
+            * По центру: Обложка 112x160px с ховер-блюром и плашкой оценки
+            * Снизу: Статусная плашка + Теги жанров слева, Дата прочтения справа
+          ========================================================================= */}
+      <article
+        onClick={handleCardClick}
+        className="hidden lg:flex group relative w-full cursor-pointer flex-col justify-between items-stretch rounded-[25px] bg-white p-[20px] text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[364px]"
+      >
+        {/* Меню действий в верхнем правом углу */}
+        <div ref={desktopMenuRef} className="absolute top-3 right-3 z-10">
           <button
             type="button"
             aria-label="Действия"
@@ -235,42 +303,90 @@ export function BookCard({
               event.stopPropagation()
               onToggleMenu(menuOpen ? null : book.id)
             }}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
           >
-            <MoreHorizontal size={16} />
+            <MoreHorizontal size={18} />
           </button>
-          {actionMenu}
+          {menuOpen ? renderActionMenu() : null}
         </div>
-      </div>
 
-      {/* Обложка по центру */}
-      <div className="my-auto flex justify-center py-1">
-        <div className="relative h-[135px] w-[92px] sm:h-[160px] sm:w-[112px] overflow-hidden rounded-[13px] sm:rounded-[15px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.10)]">
-          {showCover ? (
-            <img
-              src={book.coverUrl}
-              alt=""
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              onError={() => setCoverFailed(true)}
-            />
-          ) : (
-            <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
-              <span className="text-xl">📖</span>
-            </div>
-          )}
+        {/* Верхняя часть: Название и автор */}
+        <div className="flex flex-col items-start pr-6">
+          <h3 className="w-full truncate text-[16px] font-bold leading-tight text-gray-900">
+            {book.title}
+          </h3>
+          <p className="mt-1 w-full truncate text-[14px] font-medium text-gray-400">
+            {book.author || 'Автор не указан'}
+          </p>
         </div>
-      </div>
 
-      {/* Нижняя часть: Название и автор */}
-      <div className="flex flex-col items-start pt-1">
-        <h3 className="w-full truncate text-[14px] sm:text-[16px] font-bold leading-tight text-gray-900">
-          {book.title}
-        </h3>
-        <p className="mt-0.5 w-full truncate text-[12px] sm:text-[14px] font-medium text-gray-400">
-          {book.author || 'Автор не указан'}
-        </p>
-      </div>
-    </article>
+        {/* Обложка с эффектом блюра и оценкой по центру при ховере */}
+        <div className="my-auto flex justify-center py-1">
+          <div className="relative h-[160px] w-[112px] overflow-hidden rounded-[15px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.15)]">
+            {showCover ? (
+              <img
+                src={book.coverUrl}
+                alt=""
+                className={`h-full w-full object-cover transition-all duration-300 ${
+                  hasRating ? 'group-hover:scale-105 group-hover:blur-[5px]' : ''
+                }`}
+                onError={() => setCoverFailed(true)}
+              />
+            ) : (
+              <div
+                className={`h-full w-full bg-white transition-all duration-300 ${
+                  hasRating ? 'group-hover:blur-[5px]' : ''
+                }`}
+              />
+            )}
+
+            {/* Плашка оценки при ховере */}
+            {hasRating ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                <span className="rounded-full bg-white/95 px-3 py-1 text-[12px] font-semibold text-gray-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-sm">
+                  {book.rating} / 10
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Нижняя часть карточки на десктопе */}
+        <div className="flex items-end justify-between gap-2">
+          <div className="flex min-w-0 max-w-[170px] flex-col items-start gap-1.5">
+            <span
+              className={`inline-flex items-center rounded-[20px] px-2.5 py-1 text-[12px] font-medium leading-none ${getStatusStyle(book.status)}`}
+            >
+              {statusLabel(book.status)}
+            </span>
+            {book.tags?.length ? (
+              <div className="flex flex-wrap gap-1">
+                {book.tags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center justify-center rounded-[20px] bg-[#F6F6F6] px-2.5 py-1 text-[12px] font-medium leading-none text-gray-800"
+                  >
+                    {tag.replace(/^#/, '')}
+                  </span>
+                ))}
+                {book.tags.length > 2 ? (
+                  <span className="inline-flex items-center justify-center rounded-[20px] bg-[#F6F6F6] px-2.5 py-1 text-[12px] font-medium leading-none text-gray-800">
+                    +{book.tags.length - 2}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Дата прочтения */}
+          {period ? (
+            <span className="absolute right-6 bottom-6 text-[12px] font-medium leading-none text-gray-400">
+              {period}
+            </span>
+          ) : null}
+        </div>
+      </article>
+    </>
   )
 }
 
