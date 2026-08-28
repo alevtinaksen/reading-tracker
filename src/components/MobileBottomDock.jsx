@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  BookOpen,
   ChevronDown,
   Download,
-  LayoutDashboard,
+  LayoutGrid,
+  List,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -33,6 +33,8 @@ export function MobileBottomDock({
   resetExtraFilters,
   hasActiveExtraFilters,
   onOpenBackup,
+  viewMode = 'list',
+  onToggleViewMode,
 }) {
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const [toolsSheetOpen, setToolsSheetOpen] = useState(false)
@@ -63,136 +65,140 @@ export function MobileBottomDock({
       {/* 1. Плавающий нижний док (в одну линию, только на мобильных < lg) */}
       <nav
         aria-label="Мобильная панель управления"
-        className="fixed bottom-4 left-4 right-4 z-40 lg:hidden flex items-center justify-between gap-2 rounded-full border border-gray-100/90 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-md"
+        className="fixed bottom-4 left-3 right-3 z-40 lg:hidden flex items-center justify-between gap-1.5 rounded-full border border-gray-100/90 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-md"
       >
-        {/* Слева: Выпадающий список статусов (в разделе Библиотека) или переключатель */}
-        <div ref={statusMenuRef} className="relative flex-1 min-w-0">
-          {page === 'library' ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setStatusMenuOpen((v) => !v)}
-                className="w-full flex h-11 items-center justify-between gap-1.5 rounded-full bg-gray-100/80 px-4 text-xs font-bold text-gray-900 transition-all hover:bg-gray-200/80 active:scale-98 cursor-pointer"
-              >
-                <div className="flex items-center gap-1.5 min-w-0 truncate">
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      statusFilter === 'read'
-                        ? 'bg-[#15803D]'
-                        : statusFilter === 'reading'
-                          ? 'bg-[#0369A1]'
-                          : statusFilter === 'want_to_read'
-                            ? 'bg-[#7C3AED]'
-                            : statusFilter === 'abandoned'
-                              ? 'bg-[#D32F2F]'
-                              : 'bg-gray-900'
-                    }`}
-                  />
-                  <span className="truncate">{currentLabel}</span>
-                  <span className="text-gray-400 font-semibold">· {currentCount}</span>
-                </div>
-                <ChevronDown size={14} className="text-gray-400 shrink-0" />
-              </button>
-
-              {/* Выпадающее меню выбора статуса */}
-              {statusMenuOpen && (
-                <div className="absolute bottom-14 left-0 w-56 rounded-2xl border border-gray-100 bg-white p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.15)] z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onStatusFilter('all')
-                      setStatusMenuOpen(false)
-                    }}
-                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
-                      statusFilter === 'all' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>Все</span>
-                    <span className={statusFilter === 'all' ? 'text-white/60' : 'text-gray-400'}>
-                      {counts.all}
-                    </span>
-                  </button>
-
-                  {STATUS_OPTIONS.map((opt) => {
-                    const active = statusFilter === opt.value
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          onStatusFilter(opt.value)
-                          setStatusMenuOpen(false)
-                        }}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
-                          active ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              opt.value === 'read'
-                                ? 'bg-[#15803D]'
-                                : opt.value === 'reading'
-                                  ? 'bg-[#0369A1]'
-                                  : opt.value === 'want_to_read'
-                                    ? 'bg-[#7C3AED]'
-                                    : 'bg-[#D32F2F]'
-                            }`}
-                          />
-                          <span>{opt.label}</span>
-                        </div>
-                        <span className={active ? 'text-white/60' : 'text-gray-400'}>
-                          {counts[opt.value]}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onNavigate('library')}
-              className="w-full flex h-11 items-center justify-center gap-2 rounded-full bg-gray-100/80 px-4 text-xs font-bold text-gray-900 hover:bg-gray-200/80 active:scale-98 cursor-pointer"
-            >
-              <BookOpen size={14} />
-              <span>В библиотеку</span>
-            </button>
-          )}
+        {/* 1. Переключатель страниц: Библиотека / Дашборд прямо в меню */}
+        <div className="flex items-center rounded-full bg-gray-100/90 p-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => onNavigate('library')}
+            className={`flex h-9 items-center justify-center rounded-full px-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+              page === 'library'
+                ? 'bg-gray-900 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Библиотека
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('dashboard')}
+            className={`flex h-9 items-center justify-center rounded-full px-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+              page === 'dashboard'
+                ? 'bg-gray-900 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Дашборд
+          </button>
         </div>
 
-        {/* По центру: Компактная кнопка (+) */}
+        {/* 2. Статусы (если в Библиотеке) */}
+        {page === 'library' && (
+          <div ref={statusMenuRef} className="relative flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => setStatusMenuOpen((v) => !v)}
+              className="w-full flex h-9 items-center justify-between gap-1 rounded-full bg-gray-100/80 px-2.5 text-[11px] font-bold text-gray-900 transition-all hover:bg-gray-200/80 active:scale-98 cursor-pointer"
+            >
+              <div className="flex items-center gap-1 min-w-0 truncate">
+                <span className="truncate">{currentLabel}</span>
+                <span className="text-gray-400 font-semibold">· {currentCount}</span>
+              </div>
+              <ChevronDown size={12} className="text-gray-400 shrink-0" />
+            </button>
+
+            {/* Выпадающее меню выбора статуса */}
+            {statusMenuOpen && (
+              <div className="absolute bottom-12 left-0 w-52 rounded-2xl border border-gray-100 bg-white p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.15)] z-50 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onStatusFilter('all')
+                    setStatusMenuOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
+                    statusFilter === 'all' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>Все</span>
+                  <span className={statusFilter === 'all' ? 'text-white/60' : 'text-gray-400'}>
+                    {counts.all}
+                  </span>
+                </button>
+
+                {STATUS_OPTIONS.map((opt) => {
+                  const active = statusFilter === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        onStatusFilter(opt.value)
+                        setStatusMenuOpen(false)
+                      }}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
+                        active ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            opt.value === 'read'
+                              ? 'bg-[#15803D]'
+                              : opt.value === 'reading'
+                                ? 'bg-[#0369A1]'
+                                : opt.value === 'want_to_read'
+                                  ? 'bg-[#7C3AED]'
+                                  : 'bg-[#D32F2F]'
+                          }`}
+                        />
+                        <span>{opt.label}</span>
+                      </div>
+                      <span className={active ? 'text-white/60' : 'text-gray-400'}>
+                        {counts[opt.value]}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3. Кнопка (+) в Библиотеке */}
         {page === 'library' && (
           <button
             type="button"
             aria-label="Добавить книгу"
             onClick={onAdd}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
           >
-            <Plus size={20} strokeWidth={2.5} />
+            <Plus size={18} strokeWidth={2.5} />
           </button>
         )}
 
-        {/* Справа: Кнопка панели настроек / фильтров (🎛️) */}
-        <button
-          type="button"
-          aria-label="Настройки и фильтры"
-          onClick={() => setToolsSheetOpen(true)}
-          className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 cursor-pointer ${
-            hasAnyFilterActive || toolsSheetOpen
-              ? 'bg-gray-900 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
-          }`}
-        >
-          <SlidersHorizontal size={17} strokeWidth={2} />
-          {hasAnyFilterActive && (
-            <span className="absolute top-1 right-1 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-          )}
-        </button>
+        {/* 4. Кнопка настроек / фильтров (🎛️) */}
+        {page === 'library' && (
+          <button
+            type="button"
+            aria-label="Настройки и фильтры"
+            onClick={() => setToolsSheetOpen(true)}
+            className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 cursor-pointer ${
+              hasAnyFilterActive || toolsSheetOpen
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+            }`}
+          >
+            <SlidersHorizontal size={15} strokeWidth={2} />
+            {hasAnyFilterActive && (
+              <span className="absolute top-0.5 right-0.5 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
+          </button>
+        )}
       </nav>
 
-      {/* 2. Нижняя шторка (Bottom Sheet) со всеми инструментами и переключателем страниц */}
+      {/* 2. Нижняя шторка (Bottom Sheet) со всеми инструментами */}
       {toolsSheetOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-xs transition-opacity lg:hidden"
@@ -223,41 +229,35 @@ export function MobileBottomDock({
             </header>
 
             <div className="overflow-y-auto p-6 space-y-5 pb-10">
-              {/* 1. Переключатель разделов: Библиотека / Дашборд */}
+              {/* 1. Режим отображения: Список / Сетка */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-                  Раздел
+                  Вид каталога
                 </label>
                 <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      onNavigate('library')
-                      setToolsSheetOpen(false)
-                    }}
+                    onClick={() => onToggleViewMode && onToggleViewMode('list')}
                     className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all cursor-pointer ${
-                      page === 'library'
+                      viewMode === 'list'
                         ? 'bg-white text-gray-900 shadow-xs'
                         : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <BookOpen size={14} />
-                    <span>Библиотека</span>
+                    <List size={14} />
+                    <span>Списком</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      onNavigate('dashboard')
-                      setToolsSheetOpen(false)
-                    }}
+                    onClick={() => onToggleViewMode && onToggleViewMode('grid')}
                     className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all cursor-pointer ${
-                      page === 'dashboard'
+                      viewMode === 'grid'
                         ? 'bg-white text-gray-900 shadow-xs'
                         : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <LayoutDashboard size={14} />
-                    <span>Дашборд</span>
+                    <LayoutGrid size={14} />
+                    <span>Карточками</span>
                   </button>
                 </div>
               </div>

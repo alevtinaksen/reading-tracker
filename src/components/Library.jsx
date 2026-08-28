@@ -4,7 +4,9 @@ import {
   Check,
   ChevronDown,
   Download,
+  LayoutGrid,
   Library as LibraryIcon,
+  List,
   Plus,
   RotateCcw,
   SlidersHorizontal,
@@ -68,6 +70,7 @@ export function Library({
   onNavigate,
 }) {
   const [menuId, setMenuId] = useState(null)
+  const [viewMode, setViewMode] = useState('list')
   const [sortBy, setSortBy] = useState('newest')
   const [sortOpen, setSortOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -422,6 +425,17 @@ export function Library({
                 </div>
               ) : null}
             </div>
+
+            {/* 4. Переключатель вида (Список / Сетка) на десктопе */}
+            <button
+              type="button"
+              aria-label={viewMode === 'list' ? 'Вид карточками' : 'Вид списком'}
+              title={viewMode === 'list' ? 'Переключить на сетку' : 'Переключить на список'}
+              onClick={() => setViewMode((v) => (v === 'list' ? 'grid' : 'list'))}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-700 transition-all duration-200 hover:scale-105 hover:text-gray-900 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] active:scale-95 cursor-pointer"
+            >
+              {viewMode === 'list' ? <LayoutGrid size={18} strokeWidth={2} /> : <List size={18} strokeWidth={2} />}
+            </button>
           </div>
         </div>
       </header>
@@ -463,8 +477,23 @@ export function Library({
               </button>
             )}
           </div>
+        ) : viewMode === 'list' ? (
+          <div className="flex flex-col gap-1">
+            {visible.map((book) => (
+              <BookCard
+                key={book.id}
+                book={book}
+                menuOpen={menuId === book.id}
+                onToggleMenu={setMenuId}
+                onEdit={onEdit}
+                onMarkRead={onMarkRead}
+                onQuickRate={onQuickRate}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
         ) : (
-          <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 sm:gap-1">
+          <div className="grid grid-cols-2 gap-1 md:grid-cols-3 xl:grid-cols-4">
             {visible.map((book) => (
               <BookCard
                 key={book.id}
@@ -503,6 +532,8 @@ export function Library({
         resetExtraFilters={resetExtraFilters}
         hasActiveExtraFilters={hasActiveExtraFilters}
         onOpenBackup={() => setBackupOpen(true)}
+        viewMode={viewMode}
+        onToggleViewMode={setViewMode}
       />
 
       {/* Модальное окно резервного копирования и экспорта */}
