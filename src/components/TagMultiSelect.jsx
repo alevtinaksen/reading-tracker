@@ -54,7 +54,7 @@ export function TagMultiSelect({
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="flex min-h-11 flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 transition-all focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900">
+      <div className="flex min-h-[46px] flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-white pl-3.5 pr-1.5 py-1.5 transition-all focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900">
         {selected.map((tag) => (
           <span
             key={tag}
@@ -93,7 +93,7 @@ export function TagMultiSelect({
                 onChange([])
               }}
               title="Очистить все теги"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 active:scale-95 cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 active:scale-95 cursor-pointer"
             >
               <X size={14} strokeWidth={2} />
             </button>
@@ -105,12 +105,12 @@ export function TagMultiSelect({
               disabled={isDetecting || !canAutoDetect}
               onClick={onAutoDetect}
               title={canAutoDetect ? 'Автоматически определить жанры' : 'Сначала введите название книги'}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-700 transition-all hover:bg-gray-200 hover:text-gray-900 disabled:opacity-35 disabled:cursor-not-allowed active:scale-95 shrink-0 cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800 transition-all hover:bg-gray-200 hover:text-gray-900 disabled:opacity-35 disabled:cursor-not-allowed active:scale-95 shrink-0 cursor-pointer"
             >
               {isDetecting ? (
-                <Loader2 size={14} className="animate-spin text-gray-900" />
+                <Loader2 size={15} className="animate-spin text-gray-900" />
               ) : (
-                <Sparkles size={14} className="text-gray-900" />
+                <Sparkles size={15} className="text-gray-900" />
               )}
             </button>
           ) : null}

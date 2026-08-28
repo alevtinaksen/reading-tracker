@@ -183,15 +183,20 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     try {
       const found = await detectGenresForBook(form.title, form.author)
       if (found.length > 0) {
-        setForm((prev) => ({ ...prev, tags: [...new Set([...prev.tags, ...found])] }))
-        setGenreMessage(`Найдено: +${found.length}`)
-        setTimeout(() => setGenreMessage(''), 3000)
+        setForm((prev) => ({ ...prev, tags: [...new Set([...(prev.tags || []), ...found])] }))
+        setGenreMessageType('success')
+        setGenreMessage(`Определено: +${found.length}`)
+        setTimeout(() => setGenreMessage(''), 3500)
       } else {
-        setGenreMessage('Жанры не определены')
-        setTimeout(() => setGenreMessage(''), 3000)
+        setGenreMessageType('warning')
+        setGenreMessage('Жанры не найдены')
+        setTimeout(() => setGenreMessage(''), 3500)
       }
     } catch (err) {
       console.error(err)
+      setGenreMessageType('error')
+      setGenreMessage('Не удалось определить жанры')
+      setTimeout(() => setGenreMessage(''), 3500)
     } finally {
       setIsDetectingGenres(false)
     }
@@ -403,10 +408,42 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                     </Field>
                   </div>
                 )}
-                <Field label="Жанры и теги" action={(mode === 'manual' || isEdit) && genreMessage ? <span className="text-[11px] font-medium text-emerald-600 animate-pulse">{genreMessage}</span> : null}>
+                <Field
+                  label="Жанры и теги"
+                  action={
+                    (mode === 'manual' || isEdit) && genreMessage ? (
+                      <span
+                        className={`text-[11px] font-semibold animate-pulse ${
+                          genreMessageType === 'success'
+                            ? 'text-emerald-600'
+                            : genreMessageType === 'warning'
+                              ? 'text-amber-600'
+                              : 'text-red-500'
+                        }`}
+                      >
+                        {genreMessage}
+                      </span>
+                    ) : null
+                  }
+                >
                   <TagMultiSelect value={form.tags} onChange={(v) => update('tags', v)} options={tagOptions} onAutoDetect={mode === 'manual' || isEdit ? handleDetectGenres : undefined} isDetecting={isDetectingGenres} canAutoDetect={Boolean(form.title.trim())} />
                 </Field>
-                <Field label="Количество страниц"><input type="number" min="1" value={form.pages ?? ''} onChange={(e) => update('pages', e.target.value ? Number(e.target.value) : null)} className={inputClass} placeholder="Например: 380" /></Field>
+                <Field label="Количество страниц">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.pages ?? ''}
+                      onChange={(e) => update('pages', e.target.value ? Number(e.target.value) : null)}
+                      className={`${inputClass} pr-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                      placeholder="Например: 380"
+                    />
+                    <ChevronsUpDown
+                      size={16}
+                      className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-400"
+                    />
+                  </div>
+                </Field>
                 <div className="border-t border-gray-100 pt-3">
                   <button type="button" onClick={() => setShowNotes(!showNotes)} className="flex w-full items-center justify-between py-1 text-xs font-semibold text-gray-500 hover:text-gray-900 cursor-pointer">
                     <span className="flex items-center gap-1.5">{showNotes ? <Minus size={13} /> : <Plus size={13} />}<span>Отзыв или цитаты</span></span>

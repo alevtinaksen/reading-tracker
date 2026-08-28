@@ -48,34 +48,71 @@ export async function fetchBookMetadataFromUrl(rawUrl) {
 }
 
 /**
- * Ищет жанры и теги книги в интернете по названию и автору
+ * Ищет жанры и теги книги в интернете по названию и автору через Google Books, OpenLibrary и смысловой классификатор
  */
 export async function detectGenresForBook(title, author = '') {
   if (!title || !title.trim()) {
     throw new Error('Сначала укажите название книги')
   }
 
-  const query = `${title.trim()} ${author.trim()}`.trim()
-  const detected = new Set(extractGenresFromText(query))
+  const cleanT = title.trim()
+  const cleanA = author.trim()
+  const query = `${cleanT} ${cleanA}`.trim()
+  const detected = new Set()
 
+  // 1. Быстрый поиск в Google Books API
   try {
-    const searchUrl = `https://www.livelib.ru/find/${encodeURIComponent(query)}`
-    const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(searchUrl)}`)
+    const gUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=3`
+    const res = await fetch(gUrl)
     if (res.ok) {
       const json = await res.json()
-      if (json.status === 'success' && json.data) {
-        const found = extractTagsFromMetadata(json.data)
-        found.forEach((t) => detected.add(t))
+      if (json.items && json.items.length > 0) {
+        for (const item of json.items) {
+          const info = item.volumeInfo || {}
+          const combinedText = [
+            info.title,
+            info.subtitle,
+            info.description,
+            ...(info.categories || []),
+          ].filter(Boolean).join(' ')
+
+          const found = extractGenresFromText(combinedText)
+          found.forEach((g) => detected.add(g))
+        }
       }
     }
-  } catch {
-    // Фоллбек на локальные правила
+  } catch (err) {
+    console.warn('Google Books API genre check failed:', err)
   }
 
+  // 2. Поиск в OpenLibrary API
   if (detected.size === 0) {
-    const fallback = extractGenresFromText(`${title} ${author}`)
-    fallback.forEach((t) => detected.add(t))
+    try {
+      const olUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3`
+      const res = await fetch(olUrl)
+      if (res.ok) {
+        const json = await res.json()
+        if (json.docs && json.docs.length > 0) {
+          for (const doc of json.docs) {
+            const combinedText = [
+              doc.title,
+              ...(doc.subject || []),
+              ...(doc.author_name || []),
+            ].filter(Boolean).join(' ')
+
+            const found = extractGenresFromText(combinedText)
+            found.forEach((g) => detected.add(g))
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('OpenLibrary genre check failed:', err)
+    }
   }
+
+  // 3. Анализ названия книги и автора через базу авторов и ключевых корней
+  const directFound = extractGenresFromText(query)
+  directFound.forEach((g) => detected.add(g))
 
   return [...detected]
 }
@@ -219,17 +256,95 @@ function cleanPublishers({ title, author }) {
 }
 
 const GENRE_RULES = [
-  { tag: 'Психология', keywords: ['психолог', 'психотерапи', 'саморазвити', 'самооценк', 'мозг', 'эмоци', 'мышлени', 'психик', 'травм', 'биполярн', 'депресси', 'расстройств', 'терапи'] },
-  { tag: 'Нон-фикшн', keywords: ['нон-фикшн', 'non-fiction', 'научпоп', 'биографи', 'мемуар', 'исследовани', 'наук', 'истори'] },
-  { tag: 'Детектив', keywords: ['детектив', 'триллер', 'расследовани', 'криминал', 'убийств', 'исчезновени', 'тайны', 'маньяк', 'холодное дело'] },
-  { tag: 'Триллер', keywords: ['триллер', 'саспенс', 'психологический триллер', 'острые предметы', 'исчезнувшая', 'напряжени'] },
-  { tag: 'Фантастика', keywords: ['фантастик', 'sci-fi', 'космос', 'будуще', 'киберпанк', 'антиутопи', 'утопи', 'роботы'] },
-  { tag: 'Фэнтези', keywords: ['фэнтези', 'маги', 'дракон', 'эльф', 'меч', 'колдовств', 'ведьм', 'заклинани'] },
-  { tag: 'Классика', keywords: ['классик', 'роман-эпопея', 'шедевр', 'достоевск', 'толстой', 'булгаков', 'чехов', 'гоголь', 'пушкин', 'тургенев'] },
-  { tag: 'Бизнес', keywords: ['бизнес', 'маркетинг', 'стартап', 'менеджмент', 'экономик', 'деньги', 'инвестици', 'продаж', 'финансы'] },
-  { tag: 'Саморазвитие', keywords: ['саморазвити', 'продуктивност', 'привычк', 'успех', 'мотиваци', 'цели', 'дисциплин', 'тайм-менеджмент'] },
-  { tag: 'Роман', keywords: ['любовный роман', 'романтич', 'драма', 'отношени', 'любовь'] },
-  { tag: 'Философия', keywords: ['философи', 'смысл жизни', 'стоицизм', 'ницше', 'кант', 'этик'] },
+  {
+    tag: 'Детектив',
+    keywords: [
+      'детектив', 'детективы', 'расследовани', 'криминал', 'убийств', 'исчезновени',
+      'тайны', 'маньяк', 'холодное дело', 'сыщик', 'полиция', 'следстви', 'инспектор',
+      'mystery', 'detective', 'crime', 'investigation', 'police', 'carmen mola', 'мола', 'несбё', 'кристи', 'конан дойл'
+    ],
+  },
+  {
+    tag: 'Триллер',
+    keywords: [
+      'триллер', 'триллеры', 'саспенс', 'психологический триллер', 'острые предметы',
+      'исчезнувшая', 'напряжени', 'похищени', 'заложник', 'преследовани', 'thriller', 'suspense', 'психопат'
+    ],
+  },
+  {
+    tag: 'Психология',
+    keywords: [
+      'психолог', 'психотерапи', 'самооценк', 'мозг', 'эмоци', 'мышлени', 'психик',
+      'травм', 'биполярн', 'депресси', 'расстройств', 'терапи', 'отношени', 'чувств',
+      'psychology', 'counseling', 'neuroscience', 'грэй', 'лабковский', 'курпатов', 'фрейд', 'юнг'
+    ],
+  },
+  {
+    tag: 'Саморазвитие',
+    keywords: [
+      'саморазвити', 'продуктивност', 'привычк', 'успех', 'мотиваци', 'цели', 'дисциплин',
+      'тайм-менеджмент', 'личностный рост', 'самосовершенствовани', 'self-help', 'personal growth', 'habit'
+    ],
+  },
+  {
+    tag: 'Нон-фикшн',
+    keywords: [
+      'нон-фикшн', 'non-fiction', 'научпоп', 'биографи', 'мемуар', 'исследовани', 'наук',
+      'истори', 'документальн', 'популярная наука', 'science', 'biography'
+    ],
+  },
+  {
+    tag: 'Фантастика',
+    keywords: [
+      'фантастик', 'sci-fi', 'космос', 'будуще', 'киберпанк', 'антиутопи', 'утопи',
+      'роботы', 'искусственный интеллект', 'science fiction', 'dystopia', 'оруэлл', 'брэдбери', 'азимов', 'стругацк'
+    ],
+  },
+  {
+    tag: 'Фэнтези',
+    keywords: [
+      'фэнтези', 'маги', 'дракон', 'эльф', 'меч', 'колдовств', 'ведьм', 'заклинани',
+      'fantasy', 'dark fantasy', 'magic', 'толкин', 'марти', 'роулинг', 'сапковский', 'сандерсон'
+    ],
+  },
+  {
+    tag: 'Классика',
+    keywords: [
+      'классик', 'роман-эпопея', 'шедевр', 'достоевск', 'толстой', 'булгаков', 'чехов',
+      'гоголь', 'пушкин', 'тургенев', 'classics', 'classic literature'
+    ],
+  },
+  {
+    tag: 'Бизнес',
+    keywords: [
+      'бизнес', 'маркетинг', 'стартап', 'менеджмент', 'экономик', 'деньги', 'инвестици',
+      'продаж', 'финансы', 'управление', 'business', 'economics', 'finance', 'management'
+    ],
+  },
+  {
+    tag: 'Роман',
+    keywords: [
+      'любовный роман', 'романтич', 'драма', 'любовь', 'судьба', 'romance', 'love story', 'проза', 'fiction / general'
+    ],
+  },
+  {
+    tag: 'Ужасы',
+    keywords: [
+      'ужасы', 'хоррор', 'мистика', 'привидени', 'кошмар', 'демон', 'horror', 'ghost', 'кинг'
+    ],
+  },
+  {
+    tag: 'Философия',
+    keywords: [
+      'философи', 'смысл жизни', 'стоицизм', 'ницше', 'кант', 'этик', 'philosophy'
+    ],
+  },
+  {
+    tag: 'Приключения',
+    keywords: [
+      'приключени', 'путешестви', 'экспедици', 'пираты', 'выживани', 'adventure'
+    ],
+  },
 ]
 
 function extractGenresFromText(text) {
