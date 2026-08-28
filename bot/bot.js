@@ -432,11 +432,12 @@ function getGenresKeyboard(draft) {
 function getEditKeyboard() {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback('✏️ Изменить название', 'prompt_edit_title'),
-      Markup.button.callback('✏️ Изменить автора', 'prompt_edit_author'),
+      Markup.button.callback('✏️ Название', 'prompt_edit_title'),
+      Markup.button.callback('✍️ Автор', 'prompt_edit_author'),
     ],
     [
-      Markup.button.callback('📄 Изменить количество страниц', 'prompt_edit_pages'),
+      Markup.button.callback('📄 Страницы', 'prompt_edit_pages'),
+      Markup.button.callback('🖼 Ссылка на обложку', 'prompt_edit_cover'),
     ],
     [
       Markup.button.callback('« Назад к карточке', 'back_to_main'),
@@ -512,6 +513,10 @@ bot.on('text', async (ctx) => {
       } else {
         return ctx.reply('Пожалуйста, укажите количество страниц числом (например, `320`).')
       }
+    } else if (session.state === 'edit_cover') {
+      const urlMatch = text.match(/https?:\/\/[^\s]+/i)
+      draft.coverUrl = urlMatch ? urlMatch[0] : text.trim()
+      await ctx.reply(`✅ Ссылка на обложку обновлена!`, { parse_mode: 'Markdown' })
     } else if (session.state === 'add_custom_genre') {
       const genre = text.replace(/^#/, '').trim()
       if (genre) {
@@ -692,6 +697,15 @@ bot.action('prompt_edit_pages', async (ctx) => {
   userSessions.set(ctx.from.id, session)
   await ctx.answerCbQuery()
   await ctx.reply('📄 *Введите количество страниц* (числом):', { parse_mode: 'Markdown' })
+})
+
+bot.action('prompt_edit_cover', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.state = 'edit_cover'
+  userSessions.set(ctx.from.id, session)
+  await ctx.answerCbQuery()
+  await ctx.reply('🖼 *Отправьте ссылку на обложку* книги (URL адрес картинки):', { parse_mode: 'Markdown' })
 })
 
 // Кнопка возврата в главное меню

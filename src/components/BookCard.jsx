@@ -27,21 +27,16 @@ export function BookCard({
   onDelete,
 }) {
   const [coverFailed, setCoverFailed] = useState(false)
-  const [ratingPicker, setRatingPicker] = useState(false)
   const menuRef = useRef(null)
   const showCover = Boolean(book.coverUrl) && !coverFailed
   const period = formatReadPeriod(book)
   const hasRating = book.rating != null && book.status !== STATUS.wantToRead
 
   useEffect(() => {
-    if (!menuOpen) {
-      setRatingPicker(false)
-      return undefined
-    }
+    if (!menuOpen) return undefined
     function onPointer(event) {
       if (!menuRef.current?.contains(event.target)) {
         onToggleMenu(null)
-        setRatingPicker(false)
       }
     }
     document.addEventListener('pointerdown', onPointer)
@@ -64,7 +59,6 @@ export function BookCard({
           aria-label="Действия"
           onClick={(event) => {
             event.stopPropagation()
-            setRatingPicker(false)
             onToggleMenu(menuOpen ? null : book.id)
           }}
           className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
@@ -74,99 +68,93 @@ export function BookCard({
         {menuOpen ? (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute top-9 right-0 w-56 rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_18px_50px_rgba(0,0,0,0.12)] z-20 animate-in fade-in zoom-in-95 duration-100"
+            className="absolute top-9 right-0 w-60 rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_20px_55px_rgba(0,0,0,0.14)] z-30 animate-in fade-in zoom-in-95 duration-100"
           >
-            {ratingPicker ? (
-              <div className="p-1 space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] font-bold text-gray-800">Поставить оценку</span>
-                  <button
-                    type="button"
-                    onClick={() => setRatingPicker(false)}
-                    className="text-[11px] font-semibold text-gray-400 hover:text-gray-900 cursor-pointer"
-                  >
-                    « Назад
-                  </button>
+            <div className="space-y-0.5">
+              <MenuItem
+                icon={Pencil}
+                onClick={() => {
+                  onToggleMenu(null)
+                  onEdit(book)
+                }}
+              >
+                Редактировать
+              </MenuItem>
+
+              {book.status === STATUS.read && (
+                <div className="my-1.5 rounded-xl bg-gray-50/90 p-2.5 border border-gray-100">
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <span className="text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
+                      <Star size={12} className={book.rating ? 'fill-gray-900 text-gray-900' : 'text-gray-400'} />
+                      <span>Оценка</span>
+                    </span>
+                    {book.rating != null ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-extrabold text-gray-900">{book.rating} / 10</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onToggleMenu(null)
+                            if (onQuickRate) onQuickRate(book.id, null)
+                          }}
+                          className="text-[10px] text-gray-400 hover:text-red-500 font-bold cursor-pointer ml-1"
+                          title="Сбросить оценку"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-medium">Без оценки</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-5 gap-1">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                      const isSelected = book.rating === num
+                      return (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => {
+                            onToggleMenu(null)
+                            if (onQuickRate) onQuickRate(book.id, num)
+                          }}
+                          className={`flex h-7 items-center justify-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-gray-900 text-white shadow-xs scale-105'
+                              : 'bg-white text-gray-700 hover:bg-gray-900 hover:text-white border border-gray-200/70 active:scale-95'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-5 gap-1.5 pt-1">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-                    const isCurrent = book.rating === num
-                    return (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => {
-                          onToggleMenu(null)
-                          setRatingPicker(false)
-                          if (onQuickRate) onQuickRate(book.id, num)
-                        }}
-                        className={`flex h-8 items-center justify-center rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                          isCurrent
-                            ? 'bg-gray-900 text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-90'
-                        }`}
-                      >
-                        {num}
-                      </button>
-                    )
-                  })}
-                </div>
-                {book.rating != null && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleMenu(null)
-                      setRatingPicker(false)
-                      if (onQuickRate) onQuickRate(book.id, null)
-                    }}
-                    className="w-full text-center pt-1 pb-0.5 text-[11px] font-medium text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                  >
-                    Сбросить оценку
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-0.5">
+              )}
+
+              {book.status !== STATUS.read ? (
                 <MenuItem
-                  icon={Pencil}
+                  icon={Check}
                   onClick={() => {
                     onToggleMenu(null)
-                    onEdit(book)
+                    onMarkRead(book.id)
                   }}
                 >
-                  Редактировать
+                  Отметить прочитанным
                 </MenuItem>
-                {book.status === STATUS.read && (
-                  <MenuItem
-                    icon={Star}
-                    onClick={() => setRatingPicker(true)}
-                  >
-                    {book.rating != null ? `Оценка: ${book.rating} ★ (изменить)` : 'Поставить оценку'}
-                  </MenuItem>
-                )}
-                {book.status !== STATUS.read ? (
-                  <MenuItem
-                    icon={Check}
-                    onClick={() => {
-                      onToggleMenu(null)
-                      onMarkRead(book.id)
-                    }}
-                  >
-                    Отметить прочитанным
-                  </MenuItem>
-                ) : null}
-                <MenuItem
-                  icon={Trash2}
-                  danger
-                  onClick={() => {
-                    onToggleMenu(null)
-                    onDelete(book.id)
-                  }}
-                >
-                  Удалить
-                </MenuItem>
-              </div>
-            )}
+              ) : null}
+
+              <MenuItem
+                icon={Trash2}
+                danger
+                onClick={() => {
+                  onToggleMenu(null)
+                  onDelete(book.id)
+                }}
+              >
+                Удалить
+              </MenuItem>
+            </div>
           </div>
         ) : null}
       </div>
