@@ -280,14 +280,16 @@ function getFormatLabel(format) {
 // Карточка описания книги
 function getDraftCaption(draft) {
   const genresText = draft.tags && draft.tags.length > 0 ? draft.tags.join(', ') : 'Не выбраны'
+  const isWant = draft.status === 'want_to_read'
+  const formatLine = !isWant ? `\n📦 Формат: *${getFormatLabel(draft.format)}*` : ''
 
   return (
     `📖 *${draft.title}*\n` +
     `✍️ Автор: *${draft.author || 'Не указан'}*\n` +
     `📄 Страниц: *${draft.pages}*\n` +
     `🏷 Жанры: *${genresText}*\n` +
-    `📌 Статус: *${getStatusLabel(draft.status)}*\n` +
-    `📦 Формат: *${getFormatLabel(draft.format)}*`
+    `📌 Статус: *${getStatusLabel(draft.status)}*` +
+    formatLine
   )
 }
 
@@ -295,12 +297,17 @@ function getDraftCaption(draft) {
 function getMainKeyboard(draft) {
   const genreCount = draft.tags?.length || 0
   const genreLabel = genreCount > 0 ? `🏷 Жанры (${genreCount})` : '🏷 Выбрать жанр'
+  const isWant = draft.status === 'want_to_read'
+
+  const firstRow = isWant
+    ? [Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu')]
+    : [
+        Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
+        Markup.button.callback(`📦 ${getFormatLabel(draft.format)}`, 'open_format_menu'),
+      ]
 
   return Markup.inlineKeyboard([
-    [
-      Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
-      Markup.button.callback(`📦 ${getFormatLabel(draft.format)}`, 'open_format_menu'),
-    ],
+    firstRow,
     [
       Markup.button.callback(genreLabel, 'open_genres_menu'),
       Markup.button.callback('✏️ Изменить данные', 'open_edit_menu'),
@@ -675,6 +682,7 @@ bot.action('save_book', async (ctx) => {
     const readMonth = draft.status === 'read' ? now.getMonth() + 1 : null
     const readYear = draft.status === 'read' ? now.getFullYear() : null
 
+    const isWant = draft.status === 'want_to_read'
     const { error: insertError } = await supabase.from('books').insert({
       id: bookId,
       title: draft.title,
@@ -682,7 +690,7 @@ bot.action('save_book', async (ctx) => {
       cover_url: draft.coverUrl || null,
       rating: draft.rating,
       status: draft.status,
-      format: draft.format,
+      format: isWant ? null : (draft.format || 'paper'),
       pages: draft.pages,
       read_month: readMonth,
       read_year: readYear,
@@ -696,12 +704,13 @@ bot.action('save_book', async (ctx) => {
     userSessions.delete(userId)
 
     const genresText = draft.tags && draft.tags.length > 0 ? `\n🏷 Жанры: ${draft.tags.join(', ')}` : ''
+    const formatSuccessLine = !isWant ? `\n📦 Формат: ${getFormatLabel(draft.format)}` : ''
 
     await ctx.replyWithMarkdown(
       `🎉 *Книга «${draft.title}» (${draft.author || 'Без автора'}) успешно добавлена в библиотеку!*\n\n` +
-      `📌 Статус: ${getStatusLabel(draft.status)}\n` +
-      `📦 Формат: ${getFormatLabel(draft.format)}\n` +
-      `📄 Страниц: *${draft.pages}*${genresText}\n\n` +
+      `📌 Статус: ${getStatusLabel(draft.status)}` +
+      formatSuccessLine +
+      `\n📄 Страниц: *${draft.pages}*${genresText}\n\n` +
       `🌐 Открыть в трекере:\nhttps://reading-tracker-ten-rho.vercel.app/`
     )
   } catch (err) {

@@ -265,6 +265,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
       coverUrl: form.coverUrl.trim(),
       review: form.review ? form.review.trim() : '',
       quotes: form.quotes ? form.quotes.trim() : '',
+      format: isWishlist ? null : (form.format || 'paper'),
       rating: isWishlist || noRating ? null : Number(form.rating),
       pages: form.pages ? Number(form.pages) : null,
       readMonth: isWishlist || noDate ? null : Number(form.readMonth),
@@ -353,21 +354,21 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                     })}
                   </div>
                 </Field>
-                <Field label="Формат">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {FORMAT_CHIPS.map((option) => {
-                      const active = form.format === option.value
-                      const Icon = option.icon
-                      return (
-                        <button key={option.value} type="button" onClick={() => update('format', option.value)} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${active ? 'bg-gray-900 text-white shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
-                          <Icon size={14} strokeWidth={1.8} /><span>{option.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </Field>
                 {!isWishlist && (
                   <div className="space-y-4">
+                    <Field label="Формат">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {FORMAT_CHIPS.map((option) => {
+                          const active = form.format === option.value
+                          const Icon = option.icon
+                          return (
+                            <button key={option.value} type="button" onClick={() => update('format', option.value)} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${active ? 'bg-gray-900 text-white shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
+                              <Icon size={14} strokeWidth={1.8} /><span>{option.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </Field>
                     <Field label="Оценка">
                       <div className="space-y-3 pb-1">
                         <RatingPicker value={form.rating} onChange={(v) => update('rating', v)} disabled={noRating} />
