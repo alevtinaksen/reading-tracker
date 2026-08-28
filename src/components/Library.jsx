@@ -218,7 +218,7 @@ export function Library({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск"
-                className="h-12 w-40 sm:w-52 rounded-full border border-gray-100/90 bg-white px-4 text-xs font-semibold text-gray-900 placeholder:text-gray-400 outline-none transition-colors hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] focus:border-gray-900"
+                className="h-12 w-40 sm:w-52 rounded-full border border-gray-100/90 bg-white px-4 text-[14px] font-medium text-gray-900 placeholder:text-gray-400 outline-none transition-colors hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] focus:border-gray-900"
               />
               {searchQuery ? (
                 <button
