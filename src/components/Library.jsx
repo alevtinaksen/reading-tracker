@@ -479,7 +479,6 @@ export function Library({
                       onToggleMenu={setMenuId}
                       onEdit={onEdit}
                       onMarkRead={onMarkRead}
-                      onQuickRate={onQuickRate}
                       onDelete={onDelete}
                       viewMode="list"
                     />
