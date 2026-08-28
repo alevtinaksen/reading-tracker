@@ -260,12 +260,12 @@ export function Dashboard({ books }) {
 
         {/* Глобальная панель выбора года (выпадающий список) и кнопка "Итоги года" */}
         <div className="mb-6 flex flex-wrap items-center justify-center gap-2.5">
-          {/* Выпадающий список годов без тени */}
+          {/* Выпадающий список годов в едином размере с тегами библиотеки */}
           <div className="relative">
             <select
               value={globalYear}
               onChange={(e) => setGlobalYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="appearance-none rounded-full border border-gray-200/90 bg-white py-2.5 pl-5 pr-10 text-xs font-bold text-gray-900 outline-none transition-colors hover:bg-gray-50 focus:border-gray-900 cursor-pointer"
+              className="h-11 sm:h-12 appearance-none rounded-full border border-transparent bg-white pl-5 pr-11 text-[14px] font-semibold text-gray-900 outline-none transition-all hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] focus:border-gray-900 cursor-pointer"
             >
               <option value="all">Все годы</option>
               {availableYears.map((year) => (
@@ -275,19 +275,19 @@ export function Dashboard({ books }) {
               ))}
             </select>
             <ChevronDown
-              size={13}
-              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              size={15}
+              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
             />
           </div>
 
-          {/* Кнопка Итоги года в строгом статичном черном стиле (только для конкретного выбранного года) */}
+          {/* Кнопка Итоги года в едином размере с тегами */}
           {!isAllYears && (
             <button
               type="button"
               onClick={() => setYearInReviewOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-2.5 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 cursor-pointer"
+              className="h-11 sm:h-12 inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 sm:px-6 text-[14px] font-semibold text-white transition-all hover:bg-gray-800 hover:shadow-[0_6px_20px_rgba(0,0,0,0.12)] active:scale-95 cursor-pointer"
             >
-              <Sparkles size={14} className="text-white" />
+              <Sparkles size={15} className="text-white" />
               <span>Итоги года</span>
             </button>
           )}
