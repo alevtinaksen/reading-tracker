@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, MoreHorizontal, Pencil, Star, Trash2 } from 'lucide-react'
+import { Check, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { STATUS, formatReadPeriod, statusLabel } from '../constants'
 
 function getStatusStyle(status) {
@@ -23,7 +23,6 @@ export function BookCard({
   onToggleMenu,
   onEdit,
   onMarkRead,
-  onQuickRate,
   onDelete,
   viewMode = 'list',
 }) {
@@ -32,7 +31,6 @@ export function BookCard({
   const mobileMenuRef = useRef(null)
   const showCover = Boolean(book.coverUrl) && !coverFailed
   const period = formatReadPeriod(book)
-  const hasRating = book.rating != null && book.status !== STATUS.wantToRead
 
   useEffect(() => {
     if (!menuOpen) return undefined
@@ -67,62 +65,6 @@ export function BookCard({
         >
           Редактировать
         </MenuItem>
-
-        {book.status === STATUS.read && (
-          <div className="my-1.5 rounded-xl bg-gray-50/90 p-2 sm:p-2.5 border border-gray-100">
-            <div className="flex items-center justify-between mb-1.5 px-0.5">
-              <span className="text-[10px] sm:text-[11px] font-bold text-gray-800 flex items-center gap-1">
-                <Star
-                  size={11}
-                  className={book.rating ? 'fill-gray-900 text-gray-900' : 'text-gray-400'}
-                />
-                <span>Оценка</span>
-              </span>
-              {book.rating != null ? (
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] sm:text-[11px] font-extrabold text-gray-900">
-                    {book.rating} / 10
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleMenu(null)
-                      if (onQuickRate) onQuickRate(book.id, null)
-                    }}
-                    className="text-[10px] text-gray-400 hover:text-red-500 font-bold cursor-pointer ml-1"
-                    title="Сбросить оценку"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <span className="text-[10px] text-gray-400">Без оценки</span>
-              )}
-            </div>
-            <div className="grid grid-cols-5 gap-1">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-                const isSelected = book.rating === num
-                return (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => {
-                      onToggleMenu(null)
-                      if (onQuickRate) onQuickRate(book.id, num)
-                    }}
-                    className={`flex h-5.5 sm:h-6 items-center justify-center rounded text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-gray-900 text-white shadow-xs'
-                        : 'bg-white text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {num}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {book.status !== STATUS.read && (
           <MenuItem
@@ -329,34 +271,21 @@ export function BookCard({
           </p>
         </div>
 
-        {/* Обложка с эффектом блюра и оценкой по центру при ховере */}
+        {/* Обложка по центру */}
         <div className="my-auto flex justify-center py-1">
           <div className="relative h-[160px] w-[112px] overflow-hidden rounded-[15px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.15)]">
             {showCover ? (
               <img
                 src={book.coverUrl}
                 alt=""
-                className={`h-full w-full object-cover transition-all duration-300 ${
-                  hasRating ? 'group-hover:scale-105 group-hover:blur-[5px]' : ''
-                }`}
+                className="h-full w-full object-cover transition-all duration-300 group-hover:scale-105"
                 onError={() => setCoverFailed(true)}
               />
             ) : (
-              <div
-                className={`h-full w-full bg-white transition-all duration-300 ${
-                  hasRating ? 'group-hover:blur-[5px]' : ''
-                }`}
-              />
-            )}
-
-            {/* Плашка оценки при ховере */}
-            {hasRating ? (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                <span className="rounded-full bg-white/95 px-3 py-1 text-[12px] font-semibold text-gray-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-sm">
-                  {book.rating} / 10
-                </span>
+              <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
+                <span className="text-2xl">📖</span>
               </div>
-            ) : null}
+            )}
           </div>
         </div>
 

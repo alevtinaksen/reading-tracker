@@ -12,7 +12,6 @@ import {
   Minus,
   PenLine,
   Plus,
-  RotateCcw,
   Tablet,
   Trash2,
   X,
@@ -26,7 +25,6 @@ import {
   uniqueAuthors,
 } from '../constants'
 import { detectGenresForBook, fetchBookMetadataFromUrl, stripPatronymic } from '../utils/bookFetcher'
-import { polishReviewText } from '../utils/reviewPolisher'
 import { AuthorCombobox } from './AuthorCombobox'
 import { TagMultiSelect } from './TagMultiSelect'
 
@@ -59,8 +57,6 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
   const [genreMessageType, setGenreMessageType] = useState('info')
 
   const [isRecording, setIsRecording] = useState(false)
-  const [isPolishing, setIsPolishing] = useState(false)
-  const [rawReviewBackup, setRawReviewBackup] = useState(null)
   const recognitionRef = useRef(null)
 
   const [showNotes, setShowNotes] = useState(Boolean(book?.review || book?.quotes))
@@ -77,8 +73,6 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
       try { recognitionRef.current?.stop() } catch {}
       setIsRecording(false)
     }
-    setRawReviewBackup(null)
-    setIsPolishing(false)
     const init = book ?? EMPTY_BOOK
     setForm(init)
     initialFormRef.current = init
@@ -267,26 +261,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     }
   }
 
-  async function handlePolishReview(level = 2) {
-    if (!form.review || !form.review.trim() || isPolishing) return
-    setIsPolishing(true)
-    setRawReviewBackup(form.review)
-    try {
-      const polished = await polishReviewText(form.review, level)
-      update('review', polished)
-    } catch (err) {
-      console.error('Error polishing review:', err)
-    } finally {
-      setIsPolishing(false)
-    }
-  }
 
-  function handleRestoreRawReview() {
-    if (rawReviewBackup) {
-      update('review', rawReviewBackup)
-      setRawReviewBackup(null)
-    }
-  }
 
   function handleSubmit(event) {
     if (event) event.preventDefault()
@@ -572,23 +547,6 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                       </div>
                     </Field>
 
-                    <Field label="Оценка">
-                      <div className="space-y-3 pb-1">
-                        <RatingPicker
-                          value={form.rating}
-                          onChange={(v) => update('rating', v)}
-                          disabled={noRating}
-                        />
-                        <div className="pt-1">
-                          <CustomCheckbox
-                            checked={noRating}
-                            onChange={(c) => update('rating', c ? null : 8)}
-                            label="Без оценки"
-                          />
-                        </div>
-                      </div>
-                    </Field>
-
                     <Field label="Месяц и год прочтения">
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
@@ -695,50 +653,12 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                         <textarea
                           value={form.review}
                           onChange={(e) => update('review', e.target.value)}
-                          className={`${inputClass} pr-[7.5rem] min-h-[90px] resize-y leading-relaxed ${
+                          className={`${inputClass} pr-12 min-h-[90px] resize-y leading-relaxed ${
                             isRecording ? 'border-red-400 ring-2 ring-red-100' : ''
                           }`}
-                          placeholder="Ваши впечатления или поток мыслей (можно надиктовать голосом)…"
+                          placeholder="Ваши впечатления или заметки (можно надиктовать голосом)…"
                         />
                         <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
-                          {/* Откатить черновик */}
-                          {rawReviewBackup && (
-                            <button
-                              type="button"
-                              onClick={handleRestoreRawReview}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900 transition-all active:scale-95 cursor-pointer"
-                              title="Вернуть исходный черновик"
-                            >
-                              <RotateCcw size={15} strokeWidth={2} />
-                            </button>
-                          )}
-
-                          {/* 3 кнопки уровней улучшения */}
-                          {form.review && form.review.trim() && (
-                            <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5">
-                              {[
-                                { level: 1, stars: '✦', title: 'Уровень 1 — только знаки препинания' },
-                                { level: 2, stars: '✦✦', title: 'Уровень 2 — переработка предложений' },
-                                { level: 3, stars: '✦✦✦', title: 'Уровень 3 — художественный стиль' },
-                              ].map(({ level, stars, title }) => (
-                                <button
-                                  key={level}
-                                  type="button"
-                                  disabled={isPolishing}
-                                  onClick={() => handlePolishReview(level)}
-                                  title={title}
-                                  className="flex h-7 items-center justify-center rounded-md px-1.5 text-[10px] font-bold text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-35 tracking-tight select-none"
-                                >
-                                  {isPolishing ? (
-                                    <Loader2 size={10} className="animate-spin" />
-                                  ) : (
-                                    stars
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-
                           {/* Микрофон */}
                           <button
                             type="button"
@@ -829,40 +749,6 @@ function Field({ label, hint, action, required, error, children }) {
       {children}
       {error ? <p className="mt-1 text-xs font-medium text-red-500">{error}</p> : null}
     </label>
-  )
-}
-
-function RatingPicker({ value, onChange, disabled }) {
-  const current = Number(value) || 0
-
-  return (
-    <div
-      className={`flex flex-wrap items-center gap-1 ${
-        disabled ? 'opacity-40 pointer-events-none' : ''
-      }`}
-    >
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => {
-        const isSelected = current === val
-        const isPast = current >= val
-
-        return (
-          <button
-            key={val}
-            type="button"
-            onClick={() => onChange(val)}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              isSelected
-                ? 'bg-gray-900 text-white shadow-xs scale-105'
-                : isPast
-                  ? 'bg-gray-200 text-gray-800'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            {val}
-          </button>
-        )
-      })}
-    </div>
   )
 }
 

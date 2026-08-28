@@ -7,7 +7,6 @@ import {
   Pencil,
   Quote,
   Smartphone,
-  Star,
   Trash2,
   X,
 } from 'lucide-react'
@@ -111,13 +110,6 @@ export function BookDetailModal({ book, onClose, onEdit, onDelete }) {
                     <span className="text-[11px] font-medium leading-tight">{book.title}</span>
                   </div>
                 )}
-
-                {book.rating ? (
-                  <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-gray-900/90 px-2.5 py-1 text-xs font-bold text-white shadow-xs backdrop-blur-xs">
-                    <Star size={11} className="fill-amber-400 text-amber-400" />
-                    <span>{book.rating}</span>
-                  </div>
-                ) : null}
               </div>
 
               {/* Дата прочтения */}

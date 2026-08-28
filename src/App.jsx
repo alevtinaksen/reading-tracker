@@ -89,12 +89,11 @@ function App() {
   }
 
   function openCreateWithStatus(status) {
-    const isNoRating = status === STATUS.wantToRead || status === STATUS.abandoned
     setEditing({
       ...EMPTY_BOOK,
       tags: [],
       status,
-      rating: isNoRating ? null : 7,
+      rating: null,
       readMonth: status === STATUS.wantToRead ? null : new Date().getMonth() + 1,
       readYear: status === STATUS.wantToRead ? null : new Date().getFullYear(),
     })
@@ -114,18 +113,6 @@ function App() {
       setEditing(null)
     }
     setDeleteTarget(null)
-  }
-
-  // Быстрая оценка из контекстного меню
-  async function handleQuickRate(bookId, newRating) {
-    const book = books.find((b) => b.id === bookId)
-    if (!book) return
-    const updated = {
-      ...book,
-      rating: newRating,
-    }
-    await upsertBook(updated)
-    toast.success(newRating ? `Оценка обновлена: ${newRating} ★` : 'Оценка сброшена')
   }
 
   return (
@@ -156,7 +143,6 @@ function App() {
                 onStatusFilter={handleStatusFilter}
                 onEdit={openEdit}
                 onMarkRead={markAsRead}
-                onQuickRate={handleQuickRate}
                 onDelete={requestDelete}
                 onAdd={openCreate}
                 onImportBooks={importBooks}

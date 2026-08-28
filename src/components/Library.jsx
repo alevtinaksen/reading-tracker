@@ -62,7 +62,6 @@ export function Library({
   onStatusFilter,
   onEdit,
   onMarkRead,
-  onQuickRate,
   onDelete,
   onAdd,
   onImportBooks,
@@ -496,7 +495,6 @@ export function Library({
                       onToggleMenu={setMenuId}
                       onEdit={onEdit}
                       onMarkRead={onMarkRead}
-                      onQuickRate={onQuickRate}
                       onDelete={onDelete}
                       viewMode="grid"
                     />
@@ -515,7 +513,6 @@ export function Library({
                   onToggleMenu={setMenuId}
                   onEdit={onEdit}
                   onMarkRead={onMarkRead}
-                  onQuickRate={onQuickRate}
                   onDelete={onDelete}
                   viewMode="grid"
                 />

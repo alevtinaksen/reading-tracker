@@ -61,7 +61,7 @@ export const EMPTY_BOOK = {
   title: '',
   author: '',
   coverUrl: '',
-  rating: 7,
+  rating: null,
   status: STATUS.read,
   format: FORMAT.paper,
   tags: [],
