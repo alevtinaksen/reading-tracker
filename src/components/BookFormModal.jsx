@@ -69,6 +69,8 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
   const recognitionRef = useRef(null)
 
   const [showNotes, setShowNotes] = useState(Boolean(book?.review || book?.quotes))
+  const [showConfirmClose, setShowConfirmClose] = useState(false)
+  const initialFormRef = useRef(book ?? EMPTY_BOOK)
 
   const isWishlist = form.status === STATUS.wantToRead
   const noRating = form.rating == null || form.rating === ''
@@ -82,7 +84,9 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     }
     setRawReviewBackup(null)
     setIsPolishing(false)
-    setForm(book ?? EMPTY_BOOK)
+    const init = book ?? EMPTY_BOOK
+    setForm(init)
+    initialFormRef.current = init
     setError('')
     setImportUrl('')
     setImportError('')
@@ -90,17 +94,54 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     setGenreMessage('')
     setMode(book?.id ? 'manual' : 'url')
     setShowNotes(Boolean(book?.review || book?.quotes))
+    setShowConfirmClose(false)
   }, [book])
 
   useEffect(() => {
     return () => { if (recognitionRef.current) try { recognitionRef.current.stop() } catch {} }
   }, [])
 
+  function checkIsDirty() {
+    const init = initialFormRef.current
+    if (!init) return false
+    return (
+      (form.title || '').trim() !== (init.title || '').trim() ||
+      (form.author || '').trim() !== (init.author || '').trim() ||
+      (form.status || '') !== (init.status || '') ||
+      (form.format || '') !== (init.format || '') ||
+      (form.rating ?? '') !== (init.rating ?? '') ||
+      (form.pages ?? '') !== (init.pages ?? '') ||
+      (form.readMonth ?? '') !== (init.readMonth ?? '') ||
+      (form.readYear ?? '') !== (init.readYear ?? '') ||
+      (form.review || '').trim() !== (init.review || '').trim() ||
+      (form.quotes || '').trim() !== (init.quotes || '').trim() ||
+      JSON.stringify(form.tags || []) !== JSON.stringify(init.tags || [])
+    )
+  }
+
+  function handleAttemptClose() {
+    if (checkIsDirty()) {
+      setShowConfirmClose(true)
+    } else {
+      onClose()
+    }
+  }
+
   useEffect(() => {
-    const onKey = (event) => { if (event.key === 'Escape') onClose() }
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showConfirmClose) {
+          setShowConfirmClose(false)
+        } else if (checkIsDirty()) {
+          setShowConfirmClose(true)
+        } else {
+          onClose()
+        }
+      }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, showConfirmClose, form])
 
   function update(field, val) {
     setForm((prev) => ({ ...prev, [field]: val }))
@@ -215,15 +256,15 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
   }
 
   function handleSubmit(event) {
-    event.preventDefault()
+    if (event) event.preventDefault()
     if (!form.title.trim()) { setError('Укажите название книги'); return }
     const bookToSave = {
       ...form,
       title: form.title.trim(),
       author: stripPatronymic(form.author.trim()),
       coverUrl: form.coverUrl.trim(),
-      review: form.review.trim(),
-      quotes: form.quotes.trim(),
+      review: form.review ? form.review.trim() : '',
+      quotes: form.quotes ? form.quotes.trim() : '',
       rating: isWishlist || noRating ? null : Number(form.rating),
       pages: form.pages ? Number(form.pages) : null,
       readMonth: isWishlist || noDate ? null : Number(form.readMonth),
@@ -231,13 +272,36 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
       tags: form.tags ?? [],
     }
     onSave(bookToSave)
+    onClose()
   }
 
   const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:border-gray-900 focus:ring-1 focus:ring-gray-900'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto bg-black/50 p-0 sm:p-4 backdrop-blur-xs transition-opacity duration-200" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <div role="dialog" aria-modal="true" className="w-full max-w-xl flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-[28px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] max-h-[92vh] sm:max-h-[88vh] animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto bg-black/50 p-0 sm:p-4 backdrop-blur-xs transition-opacity duration-200" onPointerDown={(event) => { if (event.target === event.currentTarget) handleAttemptClose() }}>
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-xl flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-[28px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] max-h-[92vh] sm:max-h-[88vh] animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-200">
+        
+        {showConfirmClose && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-2xl text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                <PenLine size={22} strokeWidth={2} />
+              </div>
+              <h3 className="mt-3 text-base font-bold text-gray-900">Несохранённые изменения</h3>
+              <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">Вы изменили данные книги. Сохранить их перед закрытием?</p>
+              <div className="mt-5 space-y-2">
+                <button type="button" onClick={(e) => { setShowConfirmClose(false); handleSubmit(e) }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 cursor-pointer shadow-xs">
+                  <Check size={14} strokeWidth={2.5} /><span>Сохранить</span>
+                </button>
+                <button type="button" onClick={() => { setShowConfirmClose(false); onClose() }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-3 text-xs font-bold text-red-600 transition-all hover:bg-red-100 active:scale-95 cursor-pointer">
+                  <Trash2 size={14} /><span>Сбросить</span>
+                </button>
+                <button type="button" onClick={() => setShowConfirmClose(false)} className="w-full py-2 text-xs font-semibold text-gray-400 hover:text-gray-700 cursor-pointer">Продолжить редактирование</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-gray-300 sm:hidden" />
         <header className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
           <div className="flex items-center gap-3">
@@ -247,7 +311,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
               <p className="text-xs text-gray-400">{isEdit ? 'Измените параметры книги' : 'Добавление книги в коллекцию'}</p>
             </div>
           </div>
-          <button type="button" aria-label="Закрыть" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 cursor-pointer"><X size={18} /></button>
+          <button type="button" aria-label="Закрыть" onClick={handleAttemptClose} className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 cursor-pointer"><X size={18} /></button>
         </header>
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
@@ -334,7 +398,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                     <div className="mt-3 space-y-4 pt-1">
                       <Field label="Отзыв">
                         <div className="relative">
-                          <textarea value={form.review} onChange={(e) => update('review', e.target.value)} rows={3} className={`${inputClass} pr-24 ${isRecording ? 'border-red-400 ring-2 ring-red-100' : ''}`} placeholder="Напишите или надиктуйте..." />
+                          <textarea value={form.review} onChange={(e) => update('review', e.target.value)} rows={3} className={`${inputClass} pr-32 ${isRecording ? 'border-red-400 ring-2 ring-red-100' : ''}`} placeholder="Напишите или надиктуйте..." />
                           <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
                             {rawReviewBackup && <button type="button" onClick={handleRestoreRawReview} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all cursor-pointer"><RotateCcw size={13} /></button>}
                             <button type="button" disabled={isPolishing || !form.review?.trim()} onClick={handlePolishReview} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-900 disabled:opacity-35 transition-all cursor-pointer">
@@ -368,7 +432,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleAttemptClose}
                 className="rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 active:scale-95 cursor-pointer"
               >
                 Отмена

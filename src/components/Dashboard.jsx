@@ -15,8 +15,8 @@ import {
 import { FORMAT, FORMAT_OPTIONS, MONTHS, STATUS } from '../constants'
 import { YearInReviewModal } from './YearInReviewModal'
 
-// Цель чтения на год — 12 книг
-const READING_GOAL = 12
+// Цель чтения на год — 36 книг
+const READING_GOAL = 36
 
 function plural(n, one, few, many) {
   const mod10 = n % 10
@@ -326,7 +326,7 @@ export function Dashboard({ books }) {
           })}
         </section>
 
-        {/* 2. График «Активность по месяцам» с идеальной геометрией и паддингами */}
+        {/* 2. График «Активность по месяцам» — Современный столбчатый график */}
         <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -339,85 +339,47 @@ export function Dashboard({ books }) {
             </div>
           </div>
 
-          {/* SVG График с математически выверенными границами 900x190 */}
-          <div className="mt-6 w-full">
-            <div className="relative w-full aspect-[2.2/1] sm:aspect-[3.6/1] max-h-[220px]">
-              <svg
-                viewBox="0 0 900 190"
-                className="h-full w-full"
-              >
-                <defs>
-                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#111827" stopOpacity="0.08" />
-                    <stop offset="100%" stopColor="#111827" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
+          {/* 12 столбцов месяцев с идеальной адаптацией */}
+          <div className="mt-8 grid grid-cols-12 gap-1 sm:gap-2.5 items-end h-[155px] pt-4 pb-1">
+            {MONTHS.map((m, idx) => {
+              const count = activityMonthCounts[idx] || 0
+              const isPeak = count > 0 && count === maxMonthCount
+              const heightPct = maxMonthCount > 0 ? Math.max((count / maxMonthCount) * 100, 8) : 0
 
-                {/* Горизонтальные направляющие сетки */}
-                <line x1="30" y1="25" x2="870" y2="25" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
-                <line x1="30" y1="85" x2="870" y2="85" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
-                <line x1="30" y1="145" x2="870" y2="145" stroke="#E5E7EB" strokeWidth="1" />
+              return (
+                <div key={m.value} className="group relative flex flex-col items-center justify-end h-full w-full">
+                  {/* Число над столбцом */}
+                  {count > 0 ? (
+                    <span className="mb-2 text-xs sm:text-sm font-extrabold text-gray-900 leading-none select-none transition-transform group-hover:scale-110">
+                      {count}
+                    </span>
+                  ) : (
+                    <span className="mb-2 text-[10px] font-medium text-transparent leading-none select-none">
+                      0
+                    </span>
+                  )}
 
-                {/* Заливка области под графиком */}
-                <path d={curveData.areaPath} fill="url(#areaGradient)" />
-
-                {/* Плавная линия графика */}
-                <path
-                  d={curveData.linePath}
-                  fill="none"
-                  stroke="#111827"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-
-                {/* Интерактивные точки со значениями и подписями месяцев */}
-                {curveData.coords.map((pt, idx) => {
-                  const isPeak = pt.val > 0 && pt.val === curveData.max
-                  const monthName = MONTHS[idx]?.label?.slice(0, 3) || ''
-
-                  return (
-                    <g key={idx} className="group">
-                      {/* Подпись месяца прямо под точкой */}
-                      <text
-                        x={pt.x}
-                        y={170}
-                        textAnchor="middle"
-                        className="fill-gray-400 text-[11px] font-semibold select-none"
-                      >
-                        {monthName}
-                      </text>
-
-                      {/* Интерактивная точка */}
-                      <circle
-                        cx={pt.x}
-                        cy={pt.y}
-                        r={isPeak ? 5 : pt.val > 0 ? 3.5 : 2}
-                        className={`transition-all duration-200 ${
-                          isPeak
-                            ? 'fill-gray-900 stroke-white stroke-[2px]'
-                            : pt.val > 0
-                              ? 'fill-gray-800'
-                              : 'fill-gray-300'
-                        } group-hover:scale-125 group-hover:fill-gray-900`}
+                  {/* Столбец */}
+                  <div className="w-full flex items-end justify-center h-[85px]">
+                    {count > 0 ? (
+                      <div
+                        className={`w-full max-w-[26px] sm:max-w-[34px] rounded-t-lg sm:rounded-t-xl transition-all duration-300 group-hover:opacity-90 ${
+                          isPeak ? 'bg-gray-900' : 'bg-gray-800'
+                        }`}
+                        style={{ height: `${heightPct}%` }}
                       />
+                    ) : (
+                      <div className="h-1.5 w-full max-w-[26px] sm:max-w-[34px] rounded-full bg-gray-100 transition-colors group-hover:bg-gray-200" />
+                    )}
+                  </div>
 
-                      {/* Значение над точкой */}
-                      {pt.val > 0 ? (
-                        <text
-                          x={pt.x}
-                          y={pt.y - 9}
-                          textAnchor="middle"
-                          className="fill-gray-900 text-[11px] font-bold select-none"
-                        >
-                          {pt.val}
-                        </text>
-                      ) : null}
-                    </g>
-                  )
-                })}
-              </svg>
-            </div>
+                  {/* Название месяца */}
+                  <span className="mt-2.5 text-[10px] sm:text-xs font-semibold text-gray-400 group-hover:text-gray-900 transition-colors select-none text-center">
+                    {m.label.slice(0, 3)}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </article>
 
