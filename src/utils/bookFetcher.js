@@ -127,7 +127,18 @@ function extractRealCoverUrl(url, data) {
   }
 
   // 2. Проверка OpenGraph картинки
-  const candidate = data.image?.url || ''
+  let candidate = data.image?.url || data.image || ''
+  if (typeof candidate === 'object' && candidate.url) candidate = candidate.url
+
+  if (typeof candidate === 'string') {
+    if (candidate.startsWith('//')) {
+      candidate = `https:${candidate}`
+    } else if (candidate.startsWith('/') && url) {
+      try {
+        candidate = new URL(candidate, url).href
+      } catch {}
+    }
+  }
 
   // Игнорируем фавиконки, логотипы и пустые заглушки
   if (
@@ -185,18 +196,48 @@ function cleanTitleAndAuthor(rawTitle, rawAuthor, _url) {
   let title = (rawTitle || '').trim()
   let author = (rawAuthor || '').trim()
 
-  // 1. Очистка от магазинных суффиксов и мусора
-  title = title
-    .replace(/\s*[-–—|]\s*(купить|читать онлайн|скачать|отзывы|рецензии|книга|интернет-магазин|лабиринт|читай-город|литрес|livelib|буквоед|ozon|wildberries).*$/i, '')
-    .replace(/\s*\|\s*.*$/i, '')
-    .replace(/^книга\s*[:«"“]?\s*/i, '')
-    .trim()
+  // 1. Убираем эмодзи
+  title = title.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ')
 
-  // 2. Разделение по тире "Название — Автор" или "Автор — Название"
+  // 2. Убираем ISBN в скобках или без
+  title = title.replace(/\(?\b(?:ISBN\s*)?97[89][-\s\d]{10,}\)?/gi, ' ')
+
+  // 3. Формат LiveLib: «Название». Автор: Имя Фамилия
+  if (title.includes('Автор:') || title.includes('автор:')) {
+    const llMatch = title.match(/«?([^».]+)[».]*\s*[Аа]втор:\s*(.+)/i)
+    if (llMatch) {
+      title = llMatch[1].trim()
+      if (!author) author = llMatch[2].trim()
+    }
+  }
+
+  // 4. Очистка от магазинных суффиксов и мусора
+  const marketingPatterns = [
+    /\s*[-–—|•]\s*(?:купить|читать|скачать|отзывы|рецензии|книга|интернет-магазин|лабиринт|читай-город|литрес|livelib|буквоед|ozon|озон|wildberries|в интернет-магазине).*$/i,
+    /\s*(?:купить|заказать|доставка)\s+(?:книгу|в интернет-магазине|по выгодной цене|в буквоеде|в читай-городе|на ozon|на озоне).*$/i,
+    /\s*\|\s*(?:Литрес|Читай-город|Лабиринт|LiveLib|ЛитРес|Буквоед|OZON|Озон).*$/i,
+    /^книга\s*[:«"“]?\s*/i,
+  ]
+  for (const pat of marketingPatterns) {
+    title = title.replace(pat, '').trim()
+  }
+
+  // 5. Паттерн "Название (Автор)", e.g. "Десять негритят (Агата Кристи)"
+  const parenAuthorMatch = title.match(/^(.+?)\s*\(([^)]+)\)\s*$/)
+  if (parenAuthorMatch) {
+    const candidateTitle = parenAuthorMatch[1].trim()
+    const candidateAuthor = parenAuthorMatch[2].trim()
+    if (!author && /^([А-ЯЁA-Z][а-яёa-z]+(?:\s+[А-ЯЁA-Z][а-яёa-z.]+){1,3})$/.test(candidateAuthor)) {
+      title = candidateTitle
+      author = candidateAuthor
+    }
+  }
+
+  // 6. Разделение по тире "Название — Автор" или "Автор — Название"
   const dashSeparators = /\s+[-–—]\s+/
   if (dashSeparators.test(title)) {
     const parts = title.split(dashSeparators).map((s) => s.trim().replace(/^[«"“\s]+|[»"”\s]+$/g, ''))
-    if (parts.length === 2) {
+    if (parts.length >= 2) {
       const [part1, part2] = parts
       if (!author) {
         if (part2.split(' ').length <= 4 && !/^\d+/.test(part2)) {
@@ -207,13 +248,12 @@ function cleanTitleAndAuthor(rawTitle, rawAuthor, _url) {
           author = part1
         }
       } else {
-        // Автор уже был передан, отрезаем автора от названия
         title = part1
       }
     }
   }
 
-  // 3. Формат "Автор: Название"
+  // 7. Формат "Автор: Название"
   const colonMatch = title.match(/^(.+?)\s*:\s*(.+)$/)
   if (colonMatch && !author) {
     const part1 = colonMatch[1].trim()
@@ -227,7 +267,7 @@ function cleanTitleAndAuthor(rawTitle, rawAuthor, _url) {
     }
   }
 
-  // 4. Окончательная очистка кавычек и отчеств
+  // 8. Окончательная очистка кавычек и отчеств
   title = title.replace(/^[«"“\s]+|[»"”\s]+$/g, '').trim()
   author = stripPatronymic(
     author

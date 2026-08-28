@@ -153,26 +153,98 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
-// Умный парсинг метаданных по URL
+// Очистка названия и автора от рекламы магазинов (Буквоед, Ozon, Читай-город, Лабиринт, ЛитРес, LiveLib)
+function cleanBookTitleAndAuthor(rawTitle, rawAuthor) {
+  let title = (rawTitle || '').trim()
+  let author = (rawAuthor || '').trim()
+
+  // 1. Убираем эмодзи
+  title = title.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ')
+
+  // 2. Убираем ISBN в скобках или без
+  title = title.replace(/\(?\b(?:ISBN\s*)?97[89][-\s\d]{10,}\)?/gi, ' ')
+
+  // 3. Обработка формата LiveLib: «Название». Автор: Имя Фамилия
+  if (title.includes('Автор:') || title.includes('автор:')) {
+    const llMatch = title.match(/«?([^».]+)[».]*\s*[Аа]втор:\s*(.+)/i)
+    if (llMatch) {
+      title = llMatch[1].trim()
+      if (!author) author = llMatch[2].trim()
+    }
+  }
+
+  // 4. Убираем магазинные маркетинговые хвосты
+  const marketingPatterns = [
+    /\s*[-–—|•]\s*(?:купить|читать|скачать|отзывы|рецензии|книга|интернет-магазин|лабиринт|читай-город|литрес|livelib|буквоед|ozon|озон|wildberries|в интернет-магазине).*$/i,
+    /\s*(?:купить|заказать|доставка)\s+(?:книгу|в интернет-магазине|по выгодной цене|в буквоеде|в читай-городе|на ozon|на озоне).*$/i,
+    /\s*\|\s*(?:Литрес|Читай-город|Лабиринт|LiveLib|ЛитРес|Буквоед|OZON|Озон).*$/i,
+    /^книга\s*[:«"“]?\s*/i,
+  ]
+  for (const pat of marketingPatterns) {
+    title = title.replace(pat, '').trim()
+  }
+
+  // 5. Проверяем паттерн "Название (Автор)", e.g. "Десять негритят (Агата Кристи)"
+  const parenAuthorMatch = title.match(/^(.+?)\s*\(([^)]+)\)\s*$/)
+  if (parenAuthorMatch) {
+    const candidateTitle = parenAuthorMatch[1].trim()
+    const candidateAuthor = parenAuthorMatch[2].trim()
+    if (!author && /^([А-ЯЁA-Z][а-яёa-z]+(?:\s+[А-ЯЁA-Z][а-яёa-z.]+){1,3})$/.test(candidateAuthor)) {
+      title = candidateTitle
+      author = candidateAuthor
+    }
+  }
+
+  // 6. Проверяем тире "Название — Автор" или "Автор — Название"
+  if (title.includes(' — ') || title.includes(' - ') || title.includes(' – ')) {
+    const parts = title.split(/\s+[—–-]\s+/)
+    if (parts.length >= 2) {
+      const part1 = parts[0].trim().replace(/^[«"“\s]+|[»"”\s]+$/g, '')
+      let part2 = parts[1].trim().replace(/^[«"“\s]+|[»"”\s]+$/g, '')
+      part2 = part2.replace(/\s+(?:София|АСТ|Эксмо|Азбука|МИФ|Питер|Альпина|Издательство|Медиа|Группа|ЛитРес|LiveLib|Лабиринт|Буквоед).*$/i, '').trim()
+
+      if (!author || author.trim() === '') {
+        if (part2.split(' ').length <= 3 && /[А-ЯЁA-Z]/.test(part2)) {
+          title = part1
+          author = part2
+        } else if (part1.split(' ').length <= 3 && /[А-ЯЁA-Z]/.test(part1)) {
+          title = part2
+          author = part1
+        } else {
+          title = part1
+        }
+      } else {
+        title = part1
+      }
+    }
+  }
+
+  title = title.replace(/^[«"“\s]+|[»"”\s]+$/g, '').trim()
+  author = author.replace(/^[«"“\s]+|[»"”\s]+$/g, '').trim()
+
+  return { title, author }
+}
+
+// Умный парсинг метаданных по URL (Буквоед, Ozon, ЛитРес, Читай-Город, Лабиринт, LiveLib)
 async function fetchByUrl(urlStr) {
   try {
     const res = await fetch(urlStr, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
-      }
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
     })
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    let title = ''
-    let author = ''
+    let rawTitle = ''
+    let rawAuthor = ''
     let coverUrl = ''
     let pages = null
     const tags = []
 
-    // 1. Попытка извлечь структурированные данные Schema.org JSON-LD
+    // 1. Извлечение структурированных данных Schema.org JSON-LD
     $('script[type="application/ld+json"]').each((_, el) => {
       try {
         const raw = $(el).html()
@@ -180,11 +252,11 @@ async function fetchByUrl(urlStr) {
         const items = Array.isArray(parsed) ? parsed : [parsed]
         for (const item of items) {
           if (item['@type'] === 'Book' || item['@type'] === 'Product' || item.name) {
-            if (!title && (item.name || item.headline)) title = item.name || item.headline
-            if (!author && item.author) {
-              if (typeof item.author === 'string') author = item.author
-              else if (Array.isArray(item.author)) author = item.author.map((a) => (typeof a === 'string' ? a : a.name)).filter(Boolean).join(', ')
-              else if (item.author.name) author = item.author.name
+            if (!rawTitle && (item.name || item.headline)) rawTitle = item.name || item.headline
+            if (!rawAuthor && item.author) {
+              if (typeof item.author === 'string') rawAuthor = item.author
+              else if (Array.isArray(item.author)) rawAuthor = item.author.map((a) => (typeof a === 'string' ? a : a.name)).filter(Boolean).join(', ')
+              else if (item.author.name) rawAuthor = item.author.name
             }
             if (!coverUrl && item.image) {
               coverUrl = typeof item.image === 'string' ? item.image : (Array.isArray(item.image) ? item.image[0] : item.image.url)
@@ -201,12 +273,12 @@ async function fetchByUrl(urlStr) {
       } catch {}
     })
 
-    // 2. OpenGraph и селекторы
-    if (!title) {
-      title = $('meta[property="og:title"]').attr('content') || $('title').text() || ''
+    // 2. OpenGraph, Twitter Card и селекторы
+    if (!rawTitle) {
+      rawTitle = $('meta[property="og:title"]').attr('content') || $('title').text() || ''
     }
-    if (!author) {
-      author = $('meta[name="author"]').attr('content') ||
+    if (!rawAuthor) {
+      rawAuthor = $('meta[name="author"]').attr('content') ||
         $('[itemprop="author"]').text() ||
         $('.author-name').text() ||
         $('.book-author').text() ||
@@ -215,16 +287,12 @@ async function fetchByUrl(urlStr) {
         ''
     }
     if (!coverUrl) {
-      coverUrl = $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || ''
-    }
-
-    // Обработка формата LiveLib: «Название». Автор: Имя Фамилия
-    if (title.includes('Автор:') || title.includes('автор:')) {
-      const llMatch = title.match(/«?([^»\.]+)[»\.]*\s*[Аа]втор:\s*(.+)/i)
-      if (llMatch) {
-        title = llMatch[1].trim()
-        if (!author) author = llMatch[2].trim()
-      }
+      coverUrl = $('meta[property="og:image"]').attr('content') ||
+        $('meta[property="og:image:secure_url"]').attr('content') ||
+        $('meta[name="twitter:image"]').attr('content') ||
+        $('link[rel="image_src"]').attr('href') ||
+        $('[itemprop="image"]').attr('src') ||
+        ''
     }
 
     // 3. Поиск страниц в тексте
@@ -235,40 +303,29 @@ async function fetchByUrl(urlStr) {
       }
     }
 
-    // 4. Очистка заголовка и автора от суффиксов
-    title = title.replace(/\s*—\s*(?:книга на|купить на|читать на|скачать|интернет-магазин).*$/i, '').trim()
-    title = title.replace(/\s*\|\s*(?:Литрес|Читай-город|Лабиринт|LiveLib|ЛитРес).*$/i, '').trim()
-    title = title.replace(/^«|»$/g, '').trim()
+    // 4. Очистка названия и автора
+    const { title, author } = cleanBookTitleAndAuthor(rawTitle, rawAuthor)
 
-    if (title.includes(' — ') || title.includes(' - ')) {
-      const parts = title.split(/\s+[—\-]\s+/)
-      if (parts.length >= 2) {
-        const potentialTitle = parts[0].trim().replace(/^«|»$/g, '')
-        let potentialAuthor = parts[1].trim()
-
-        potentialAuthor = potentialAuthor
-          .replace(/\s+(?:София|АСТ|Эксмо|Азбука|МИФ|Питер|Альпина|Издательство|Медиа|Группа|ЛитРес|LiveLib|Лабиринт).*$/i, '')
-          .trim()
-
-        if (!author || author.trim() === '') {
-          author = potentialAuthor
-        }
-        title = potentialTitle
+    // 5. Обработка URL обложки (protocol-relative //, относительные /, LitRes ID)
+    if (coverUrl) {
+      if (coverUrl.startsWith('//')) {
+        coverUrl = `https:${coverUrl}`
+      } else if (coverUrl.startsWith('/')) {
+        try {
+          coverUrl = new URL(coverUrl, urlStr).href
+        } catch {}
       }
     }
 
-    // LitRes прямая ссылка на JPG (Telegram не поддерживает некоторые webp)
     if (urlStr.includes('litres.ru')) {
       const match = urlStr.match(/-(\d+)(?:\/|\?|$)/) || urlStr.match(/\/(\d+)(?:\/|\?|$)/)
       if (match && match[1]) {
         coverUrl = `https://www.litres.ru/pub/c/cover_415/${match[1]}.jpg`
       }
-    } else if (coverUrl && coverUrl.endsWith('.webp')) {
-      coverUrl = coverUrl.replace(/\.webp$/i, '.jpg')
     }
 
-    // 5. Обогащение через Google Books если нет страниц или жанров
-    if (!pages || tags.length === 0) {
+    // 6. Обогащение через Google Books если не хватает обложки, страниц или жанров
+    if (!pages || tags.length === 0 || !coverUrl) {
       try {
         const query = `${title} ${author}`.trim()
         const gb = await searchBook(query)
