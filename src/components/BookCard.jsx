@@ -104,7 +104,7 @@ export function BookCard({
           /* Мобильный список (горизонтальная карточка) */
           <article
             onClick={handleCardClick}
-            className="group relative flex w-full cursor-pointer flex-row items-center rounded-[20px] bg-white p-3 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none gap-3 hover:bg-gray-50/80"
+            className="group relative flex w-full cursor-pointer flex-row items-stretch rounded-[20px] bg-white p-3 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none gap-3 hover:bg-gray-50/80"
           >
             {/* Обложка слева */}
             <div className="relative w-[70px] h-[102px] shrink-0 overflow-hidden rounded-[14px] bg-gray-100">
@@ -123,16 +123,16 @@ export function BookCard({
             </div>
 
             {/* Текстовая информация справа */}
-            <div className="min-w-0 flex-1 flex flex-col justify-between self-stretch py-0.5">
-              {/* Верхняя строка: статус слева, меню справа */}
-              <div className="flex items-center justify-between gap-1">
+            <div className="min-w-0 flex-1 flex flex-col justify-between self-stretch">
+              {/* Верхняя строка: статус слева (по верхнему краю обложки), меню справа */}
+              <div className="flex items-start justify-between gap-1">
                 <span
                   className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
                 >
                   {statusLabel(book.status)}
                 </span>
 
-                <div ref={mobileMenuRef} className="relative shrink-0">
+                <div ref={mobileMenuRef} className="relative shrink-0 -mr-1 -mt-1">
                   <button
                     type="button"
                     aria-label="Действия"
@@ -148,20 +148,21 @@ export function BookCard({
                 </div>
               </div>
 
-              {/* Название и автор */}
-              <div className="mt-1">
-                <h4 className="font-extrabold text-[14px] leading-snug text-gray-900 line-clamp-2">
-                  {book.title}
-                </h4>
-                <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
-                  {book.author || 'Автор не указан'}
-                </p>
-              </div>
+              {/* Нижняя часть: Название и автор (выровнены по низу обложки) + дата справа под тремя точками */}
+              <div className="flex items-end justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-extrabold text-[14px] leading-snug text-gray-900 line-clamp-2">
+                    {book.title}
+                  </h4>
+                  <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
+                    {book.author || 'Автор не указан'}
+                  </p>
+                </div>
 
-              {/* Нижняя строка: дата справа (под меню) */}
-              <div className="flex items-end justify-end mt-1">
                 {period ? (
-                  <span className="text-[11px] font-medium text-gray-400">{period}</span>
+                  <span className="text-[11px] font-medium text-gray-400 shrink-0 pb-0.5 text-right">
+                    {period}
+                  </span>
                 ) : null}
               </div>
             </div>

@@ -80,7 +80,7 @@ export function MobileBottomDock({
       {/* 1. Плавающий нижний док по центру: 2 отдельные белые плашки */}
       <div
         aria-label="Мобильная панель управления"
-        className="fixed bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] left-0 right-0 z-40 lg:hidden flex items-center justify-center gap-2 px-3 pointer-events-none pb-0.5"
+        className="fixed bottom-[max(0.6rem,calc(env(safe-area-inset-bottom)+0.15rem))] left-0 right-0 z-40 lg:hidden flex items-center justify-center gap-2 px-3 pointer-events-none pb-0.5"
       >
         {/* ПЛАШКА 1: Отдельный переключатель страниц на белом фоне с мягкой круглой тенью */}
         <div className="pointer-events-auto flex items-center rounded-full border border-black/[0.06] bg-white/95 p-1 shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)] backdrop-blur-md shrink-0">
