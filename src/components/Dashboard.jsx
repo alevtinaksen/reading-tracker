@@ -259,8 +259,8 @@ export function Dashboard({ books, page = 'dashboard', onNavigate }) {
           Дашборд
         </h1>
 
-        {/* Глобальная панель выбора года (выпадающий список) и кнопка "Итоги года" */}
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-2.5">
+        {/* Глобальная панель выбора года на десктопе (на мобильных вынесена в нижний док) */}
+        <div className="hidden lg:flex mb-6 flex-wrap items-center justify-center gap-2.5">
           {/* Выпадающий список годов в едином размере с тегами библиотеки */}
           <div className="relative">
             <select
@@ -349,8 +349,8 @@ export function Dashboard({ books, page = 'dashboard', onNavigate }) {
                   {/* Число над столбиком */}
                   <div className="mb-2">
                     {isPeak ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
-                        🔥 {m.count}
+                      <span className="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-gray-900 px-1.5 text-[10px] font-black text-white shadow-xs">
+                        {m.count}
                       </span>
                     ) : m.count > 0 ? (
                       <span className="text-xs font-black text-gray-900">
@@ -557,7 +557,7 @@ export function Dashboard({ books, page = 'dashboard', onNavigate }) {
         />
       ) : null}
 
-      {/* Мобильный нижний док */}
+      {/* Мобильный нижний док с переключением годов и итогами года */}
       <MobileBottomDock
         page={page}
         onNavigate={onNavigate}
@@ -565,6 +565,10 @@ export function Dashboard({ books, page = 'dashboard', onNavigate }) {
         onStatusFilter={() => onNavigate && onNavigate('library')}
         counts={{ all: books.length }}
         onAdd={() => onNavigate && onNavigate('library')}
+        globalYear={globalYear}
+        setGlobalYear={setGlobalYear}
+        availableYears={availableYears}
+        onOpenYearInReview={() => setYearInReviewOpen(true)}
       />
     </div>
   )

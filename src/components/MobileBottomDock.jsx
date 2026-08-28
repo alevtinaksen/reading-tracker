@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  BookOpen,
   ChevronDown,
   Download,
+  LayoutDashboard,
   LayoutGrid,
   List,
   RotateCcw,
   Search,
   SlidersHorizontal,
+  Sparkles,
   X,
   Plus
 } from 'lucide-react'
@@ -35,166 +38,258 @@ export function MobileBottomDock({
   onOpenBackup,
   viewMode = 'list',
   onToggleViewMode,
+  globalYear,
+  setGlobalYear,
+  availableYears = [],
+  onOpenYearInReview,
 }) {
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+  const [yearMenuOpen, setYearMenuOpen] = useState(false)
   const [toolsSheetOpen, setToolsSheetOpen] = useState(false)
   const statusMenuRef = useRef(null)
+  const yearMenuRef = useRef(null)
 
-  // Закрытие выпадающего меню статусов при клике снаружи
+  // Закрытие выпадающих списков при клике снаружи
   useEffect(() => {
     function onPointerDown(event) {
       if (statusMenuRef.current && !statusMenuRef.current.contains(event.target)) {
         setStatusMenuOpen(false)
       }
+      if (yearMenuRef.current && !yearMenuRef.current.contains(event.target)) {
+        setYearMenuOpen(false)
+      }
     }
-    if (statusMenuOpen) {
-      document.addEventListener('pointerdown', onPointerDown)
-    }
+    document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [statusMenuOpen])
+  }, [])
 
   // Текущий выбранный статус и его название
   const currentStatusObj = STATUS_OPTIONS.find((s) => s.value === statusFilter)
   const currentLabel = statusFilter === 'all' ? 'Все' : currentStatusObj?.label || 'Все'
-  const currentCount = statusFilter === 'all' ? counts.all : counts[statusFilter] || 0
+  const currentCount = statusFilter === 'all' ? (counts?.all ?? 0) : (counts?.[statusFilter] ?? 0)
 
   const hasAnyFilterActive = hasActiveExtraFilters || Boolean(searchQuery)
 
   return (
     <>
-      {/* 1. Плавающий нижний док (в одну линию, только на мобильных < lg) */}
+      {/* 1. Увеличенный плавающий нижний док (крупные удобные кнопки) */}
       <nav
         aria-label="Мобильная панель управления"
-        className="fixed bottom-4 left-3 right-3 z-40 lg:hidden flex items-center justify-between gap-1.5 rounded-full border border-gray-100/90 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-md"
+        className="fixed bottom-4 left-3 right-3 z-40 lg:hidden flex items-center justify-between gap-2 rounded-full border border-gray-100/90 bg-white/95 p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.15)] backdrop-blur-md"
       >
-        {/* 1. Переключатель страниц: Библиотека / Дашборд прямо в меню */}
-        <div className="flex items-center rounded-full bg-gray-100/90 p-0.5 shrink-0">
+        {/* Переключатель страниц: иконка + текст у активного, только иконка у неактивного */}
+        <div className="flex items-center rounded-full bg-gray-100 p-1 shrink-0">
           <button
             type="button"
             onClick={() => onNavigate('library')}
-            className={`flex h-9 items-center justify-center rounded-full px-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+            className={`flex h-10 items-center justify-center rounded-full transition-all cursor-pointer ${
               page === 'library'
-                ? 'bg-gray-900 text-white shadow-xs'
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-gray-900 text-white shadow-xs px-3.5 gap-1.5 text-xs font-bold'
+                : 'w-10 text-gray-500 hover:text-gray-900'
             }`}
+            title="Библиотека"
           >
-            Библиотека
+            <BookOpen size={16} strokeWidth={2.2} />
+            {page === 'library' && <span>Библиотека</span>}
           </button>
+
           <button
             type="button"
             onClick={() => onNavigate('dashboard')}
-            className={`flex h-9 items-center justify-center rounded-full px-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+            className={`flex h-10 items-center justify-center rounded-full transition-all cursor-pointer ${
               page === 'dashboard'
-                ? 'bg-gray-900 text-white shadow-xs'
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-gray-900 text-white shadow-xs px-3.5 gap-1.5 text-xs font-bold'
+                : 'w-10 text-gray-500 hover:text-gray-900'
             }`}
+            title="Дашборд"
           >
-            Дашборд
+            <LayoutDashboard size={16} strokeWidth={2.2} />
+            {page === 'dashboard' && <span>Дашборд</span>}
           </button>
         </div>
 
-        {/* 2. Статусы (если в Библиотеке) */}
+        {/* --- КОНТРОЛЫ РАЗДЕЛА «БИБЛИОТЕКА» --- */}
         {page === 'library' && (
-          <div ref={statusMenuRef} className="relative flex-1 min-w-0">
+          <>
+            {/* Выпадающий список статусов */}
+            <div ref={statusMenuRef} className="relative flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => setStatusMenuOpen((v) => !v)}
+                className="w-full flex h-10 items-center justify-between gap-1 rounded-full bg-gray-100/90 px-3 text-xs font-bold text-gray-900 transition-all hover:bg-gray-200/80 active:scale-98 cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5 min-w-0 truncate">
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      statusFilter === 'read'
+                        ? 'bg-[#15803D]'
+                        : statusFilter === 'reading'
+                          ? 'bg-[#0369A1]'
+                          : statusFilter === 'want_to_read'
+                            ? 'bg-[#7C3AED]'
+                            : statusFilter === 'abandoned'
+                              ? 'bg-[#D32F2F]'
+                              : 'bg-gray-900'
+                    }`}
+                  />
+                  <span className="truncate">{currentLabel}</span>
+                  <span className="text-gray-400 font-semibold">· {currentCount}</span>
+                </div>
+                <ChevronDown size={14} className="text-gray-400 shrink-0" />
+              </button>
+
+              {/* Меню статусов */}
+              {statusMenuOpen && (
+                <div className="absolute bottom-13 left-0 w-52 rounded-2xl border border-gray-100 bg-white p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.18)] z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onStatusFilter('all')
+                      setStatusMenuOpen(false)
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
+                      statusFilter === 'all' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>Все</span>
+                    <span className={statusFilter === 'all' ? 'text-white/60' : 'text-gray-400'}>
+                      {counts?.all ?? 0}
+                    </span>
+                  </button>
+
+                  {STATUS_OPTIONS.map((opt) => {
+                    const active = statusFilter === opt.value
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          onStatusFilter(opt.value)
+                          setStatusMenuOpen(false)
+                        }}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
+                          active ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              opt.value === 'read'
+                                ? 'bg-[#15803D]'
+                                : opt.value === 'reading'
+                                  ? 'bg-[#0369A1]'
+                                  : opt.value === 'want_to_read'
+                                    ? 'bg-[#7C3AED]'
+                                    : 'bg-[#D32F2F]'
+                            }`}
+                          />
+                          <span>{opt.label}</span>
+                        </div>
+                        <span className={active ? 'text-white/60' : 'text-gray-400'}>
+                          {counts?.[opt.value] ?? 0}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Кнопка (+) добавления */}
             <button
               type="button"
-              onClick={() => setStatusMenuOpen((v) => !v)}
-              className="w-full flex h-9 items-center justify-between gap-1 rounded-full bg-gray-100/80 px-2.5 text-[11px] font-bold text-gray-900 transition-all hover:bg-gray-200/80 active:scale-98 cursor-pointer"
+              aria-label="Добавить книгу"
+              onClick={onAdd}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
             >
-              <div className="flex items-center gap-1 min-w-0 truncate">
-                <span className="truncate">{currentLabel}</span>
-                <span className="text-gray-400 font-semibold">· {currentCount}</span>
-              </div>
-              <ChevronDown size={12} className="text-gray-400 shrink-0" />
+              <Plus size={20} strokeWidth={2.5} />
             </button>
 
-            {/* Выпадающее меню выбора статуса */}
-            {statusMenuOpen && (
-              <div className="absolute bottom-12 left-0 w-52 rounded-2xl border border-gray-100 bg-white p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.15)] z-50 animate-in fade-in zoom-in-95 duration-150">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onStatusFilter('all')
-                    setStatusMenuOpen(false)
-                  }}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
-                    statusFilter === 'all' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <span>Все</span>
-                  <span className={statusFilter === 'all' ? 'text-white/60' : 'text-gray-400'}>
-                    {counts.all}
-                  </span>
-                </button>
-
-                {STATUS_OPTIONS.map((opt) => {
-                  const active = statusFilter === opt.value
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        onStatusFilter(opt.value)
-                        setStatusMenuOpen(false)
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
-                        active ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            opt.value === 'read'
-                              ? 'bg-[#15803D]'
-                              : opt.value === 'reading'
-                                ? 'bg-[#0369A1]'
-                                : opt.value === 'want_to_read'
-                                  ? 'bg-[#7C3AED]'
-                                  : 'bg-[#D32F2F]'
-                          }`}
-                        />
-                        <span>{opt.label}</span>
-                      </div>
-                      <span className={active ? 'text-white/60' : 'text-gray-400'}>
-                        {counts[opt.value]}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+            {/* Кнопка (🎛️) фильтров и настроек */}
+            <button
+              type="button"
+              aria-label="Настройки и фильтры"
+              onClick={() => setToolsSheetOpen(true)}
+              className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 cursor-pointer ${
+                hasAnyFilterActive || toolsSheetOpen
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <SlidersHorizontal size={17} strokeWidth={2} />
+              {hasAnyFilterActive && (
+                <span className="absolute top-1 right-1 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+              )}
+            </button>
+          </>
         )}
 
-        {/* 3. Кнопка (+) в Библиотеке */}
-        {page === 'library' && (
-          <button
-            type="button"
-            aria-label="Добавить книгу"
-            onClick={onAdd}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </button>
-        )}
+        {/* --- КОНТРОЛЫ РАЗДЕЛА «ДАШБОРД» --- */}
+        {page === 'dashboard' && (
+          <>
+            {/* Выпадающий список годов */}
+            <div ref={yearMenuRef} className="relative flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => setYearMenuOpen((v) => !v)}
+                className="w-full flex h-10 items-center justify-between gap-1 rounded-full bg-gray-100/90 px-3 text-xs font-bold text-gray-900 transition-all hover:bg-gray-200/80 active:scale-98 cursor-pointer"
+              >
+                <span className="truncate">
+                  {globalYear === 'all' ? 'Все годы' : `${globalYear} год`}
+                </span>
+                <ChevronDown size={14} className="text-gray-400 shrink-0" />
+              </button>
 
-        {/* 4. Кнопка настроек / фильтров (🎛️) */}
-        {page === 'library' && (
-          <button
-            type="button"
-            aria-label="Настройки и фильтры"
-            onClick={() => setToolsSheetOpen(true)}
-            className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 cursor-pointer ${
-              hasAnyFilterActive || toolsSheetOpen
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
-            }`}
-          >
-            <SlidersHorizontal size={15} strokeWidth={2} />
-            {hasAnyFilterActive && (
-              <span className="absolute top-0.5 right-0.5 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+              {/* Меню годов */}
+              {yearMenuOpen && (
+                <div className="absolute bottom-13 left-0 w-48 rounded-2xl border border-gray-100 bg-white p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.18)] z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setGlobalYear) setGlobalYear('all')
+                      setYearMenuOpen(false)
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
+                      globalYear === 'all' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>Все годы</span>
+                  </button>
+
+                  {availableYears.map((year) => {
+                    const active = globalYear === year
+                    return (
+                      <button
+                        key={year}
+                        type="button"
+                        onClick={() => {
+                          if (setGlobalYear) setGlobalYear(year)
+                          setYearMenuOpen(false)
+                        }}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer ${
+                          active ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span>{year} год</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Кнопка «Итоги года» в дашборде (если выбран конкретный год) */}
+            {globalYear !== 'all' && onOpenYearInReview && (
+              <button
+                type="button"
+                onClick={onOpenYearInReview}
+                className="flex h-10 items-center gap-1.5 rounded-full bg-gray-900 px-3.5 text-xs font-bold text-white shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <Sparkles size={14} className="text-white" />
+                <span>Итоги</span>
+              </button>
             )}
-          </button>
+          </>
         )}
       </nav>
 
