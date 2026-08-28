@@ -70,7 +70,9 @@ export function Library({
   onNavigate,
 }) {
   const [menuId, setMenuId] = useState(null)
-  const [viewMode, setViewMode] = useState('list')
+  const [viewMode, setViewMode] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 640 ? 'list' : 'grid'
+  )
   const [sortBy, setSortBy] = useState('newest')
   const [sortOpen, setSortOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -489,6 +491,7 @@ export function Library({
                 onMarkRead={onMarkRead}
                 onQuickRate={onQuickRate}
                 onDelete={onDelete}
+                viewMode="list"
               />
             ))}
           </div>
@@ -504,6 +507,7 @@ export function Library({
                 onMarkRead={onMarkRead}
                 onQuickRate={onQuickRate}
                 onDelete={onDelete}
+                viewMode="grid"
               />
             ))}
           </div>
