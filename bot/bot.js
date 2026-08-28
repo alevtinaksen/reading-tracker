@@ -297,6 +297,21 @@ async function fetchByUrl(urlStr) {
 // ГЕНЕРАТОРЫ СООБЩЕНИЙ И КЛАВИАТУР (ЧИСТЫЙ UX БЕЗ ПЕРЕГРУЗА)
 // -------------------------------------------------------------
 
+const MONTH_NAMES = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+]
+
+const SHORT_MONTHS = [
+  'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+  'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'
+]
+
+function getMonthLabel(m) {
+  if (!m || m < 1 || m > 12) return 'Без даты'
+  return MONTH_NAMES[m - 1]
+}
+
 function getStatusLabel(status) {
   const map = {
     want_to_read: '💜 Хочу прочитать',
@@ -323,6 +338,7 @@ function getDraftCaption(draft) {
   const isRead = draft.status === 'read'
   const formatLine = !isWant ? `\n📦 Формат: <b>${escapeHtml(getFormatLabel(draft.format))}</b>` : ''
   const ratingLine = isRead ? `\n⭐ Оценка: <b>${draft.rating != null ? draft.rating + ' / 10' : 'Без оценки'}</b>` : ''
+  const dateLine = isRead ? `\n🗓 Прочитано: <b>${draft.readMonth && draft.readYear ? `${getMonthLabel(draft.readMonth)} ${draft.readYear}` : 'Без даты'}</b>` : ''
 
   return (
     `📖 <b>${escapeHtml(draft.title)}</b>\n` +
@@ -331,7 +347,8 @@ function getDraftCaption(draft) {
     `🏷 Жанры: <b>${genresText}</b>\n` +
     `📌 Статус: <b>${escapeHtml(getStatusLabel(draft.status))}</b>` +
     formatLine +
-    ratingLine
+    ratingLine +
+    dateLine
   )
 }
 
@@ -343,7 +360,8 @@ function getMainKeyboard(draft) {
   const isRead = draft.status === 'read'
 
   if (isRead) {
-    const ratingLabel = draft.rating != null ? `⭐ Оценка: ${draft.rating} ★` : '⭐ Поставить оценку'
+    const ratingLabel = draft.rating != null ? `⭐ ${draft.rating} ★` : '⭐ Оценка'
+    const dateLabel = draft.readMonth && draft.readYear ? `🗓 ${SHORT_MONTHS[draft.readMonth - 1]} ${draft.readYear}` : '🗓 Без даты'
     return Markup.inlineKeyboard([
       [
         Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
@@ -351,10 +369,13 @@ function getMainKeyboard(draft) {
       ],
       [
         Markup.button.callback(ratingLabel, 'open_rating_menu'),
-        Markup.button.callback(genreLabel, 'open_genres_menu'),
+        Markup.button.callback(dateLabel, 'open_date_menu'),
       ],
       [
+        Markup.button.callback(genreLabel, 'open_genres_menu'),
         Markup.button.callback('✏️ Изменить', 'open_edit_menu'),
+      ],
+      [
         Markup.button.callback('❌ Отменить', 'cancel_book'),
         Markup.button.callback('✅ Сохранить', 'save_book'),
       ]
@@ -397,6 +418,42 @@ function getStatusKeyboard(draft) {
 
   buttons.push([Markup.button.callback('« Назад к карточке', 'back_to_main')])
   return Markup.inlineKeyboard(buttons)
+}
+
+// 3. Подменю: Дата прочтения
+function getDateKeyboard(draft) {
+  const currentYear = new Date().getFullYear()
+  const y = draft.readYear || currentYear
+  const m = draft.readMonth || null
+
+  const yearRow = [
+    Markup.button.callback(`◀ ${y - 1}`, `set_year_${y - 1}`),
+    Markup.button.callback(`📅 ${y} год`, 'noop'),
+    Markup.button.callback(`${y + 1} ▶`, `set_year_${y + 1}`),
+  ]
+
+  const monthRows = []
+  for (let r = 0; r < 4; r++) {
+    const row = []
+    for (let c = 0; c < 3; c++) {
+      const mNum = r * 3 + c + 1
+      const isSelected = m === mNum && draft.readYear === y
+      row.push(
+        Markup.button.callback(
+          `${isSelected ? '✓ ' : ''}${SHORT_MONTHS[mNum - 1]}`,
+          `set_month_${mNum}_${y}`
+        )
+      )
+    }
+    monthRows.push(row)
+  }
+
+  const bottomRow = [
+    Markup.button.callback(`${!m ? '✓ ' : ''}⚪️ Без даты`, 'set_date_null'),
+    Markup.button.callback('« Назад к карточке', 'back_to_main'),
+  ]
+
+  return Markup.inlineKeyboard([yearRow, ...monthRows, bottomRow])
 }
 
 // 3. Подменю: Оценка (для прочитанных книг)
@@ -484,6 +541,29 @@ function getEditKeyboard() {
   ])
 }
 
+// Хелпер скачивания обложки для стабильной отправки в Telegram
+async function getPhotoBuffer(coverUrl) {
+  if (!coverUrl) return null
+  try {
+    const res = await fetch(coverUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': coverUrl.includes('litres') ? 'https://www.litres.ru/' : 'https://www.google.com/'
+      },
+      signal: AbortSignal.timeout(4000)
+    })
+    if (res.ok) {
+      const ab = await res.arrayBuffer()
+      if (ab.byteLength > 800) {
+        return Buffer.from(ab)
+      }
+    }
+  } catch (err) {
+    console.warn('Cover buffer download failed:', err.message)
+  }
+  return null
+}
+
 // Хелпер обновления карточки в Telegram
 async function renderCard(ctx, draft, keyboard) {
   const caption = getDraftCaption(draft)
@@ -507,17 +587,20 @@ async function renderCard(ctx, draft, keyboard) {
     }
   }
 
-  // 2. Если это новое сообщение: отправляем фото или обычный текст
+  // 2. Если это новое сообщение: скачиваем картинку и отправляем фото
   if (draft.coverUrl) {
-    try {
-      await ctx.replyWithPhoto(draft.coverUrl, {
-        caption,
-        parse_mode: 'HTML',
-        ...keyboard
-      })
-      return
-    } catch (err) {
-      console.warn('Failed to send photo with coverUrl, falling back to text:', draft.coverUrl, err.message)
+    const photoBuffer = await getPhotoBuffer(draft.coverUrl)
+    if (photoBuffer) {
+      try {
+        await ctx.replyWithPhoto({ source: photoBuffer }, {
+          caption,
+          parse_mode: 'HTML',
+          ...keyboard
+        })
+        return
+      } catch (err) {
+        console.warn('Failed to send photo buffer:', err.message)
+      }
     }
   }
 
@@ -594,19 +677,37 @@ bot.on('text', async (ctx) => {
   // 2. Обычное сообщение: парсинг ссылки или поиск книги
   await ctx.sendChatAction('typing')
 
+  let loadingMsg = null
+  try {
+    loadingMsg = await ctx.reply(
+      text.startsWith('http://') || text.startsWith('https://')
+        ? '🔎 Загружаю данные по ссылке...'
+        : `🔎 Ищу книгу: «${text}»...`,
+      Markup.inlineKeyboard([
+        [Markup.button.callback('❌ Отменить поиск', 'abort_loading')]
+      ])
+    )
+  } catch {}
+
   let bookData = null
   if (text.startsWith('http://') || text.startsWith('https://')) {
-    await ctx.reply('🔎 Загружаю данные по ссылке...')
     bookData = await fetchByUrl(text)
   } else {
-    await ctx.reply(`🔎 Ищу книгу: «${text}»...`)
     bookData = await searchBook(text)
+  }
+
+  // Удаляем временное сообщение загрузки
+  if (loadingMsg) {
+    try {
+      await ctx.telegram.deleteMessage(ctx.chat.id, loadingMsg.message_id)
+    } catch {}
   }
 
   if (!bookData || !bookData.title) {
     return ctx.reply('😔 Не удалось найти книгу. Попробуйте написать «Автор Название» точнее.')
   }
 
+  const now = new Date()
   const draft = {
     title: bookData.title,
     author: stripPatronymic(bookData.author),
@@ -615,6 +716,8 @@ bot.on('text', async (ctx) => {
     status: 'want_to_read',
     format: 'paper',
     rating: null,
+    readMonth: now.getMonth() + 1,
+    readYear: now.getFullYear(),
     tags: bookData.tags || [],
     review: null // Отзыв никогда не заполняется автоматически
   }
@@ -626,6 +729,14 @@ bot.on('text', async (ctx) => {
 // -------------------------------------------------------------
 // ИНТЕРАКТИВНЫЕ ДЕЙСТВИЯ (CALLBACK QUERIES)
 // -------------------------------------------------------------
+
+// Отмена загрузки по ссылке
+bot.action('abort_loading', async (ctx) => {
+  try {
+    await ctx.deleteMessage()
+    await ctx.reply('❌ Загрузка книги отменена.')
+  } catch {}
+})
 
 // Открыть подменю статуса
 bot.action('open_status_menu', async (ctx) => {
@@ -640,10 +751,60 @@ bot.action(/^set_status_(.+)$/, async (ctx) => {
   const session = userSessions.get(ctx.from.id)
   if (!session) return ctx.answerCbQuery('Сессия устарела.')
   session.draft.status = ctx.match[1]
+
+  // Если статус изменился на "Прочитано" и нет даты, устанавливаем текущий месяц и год
+  if (session.draft.status === 'read' && !session.draft.readYear) {
+    const d = new Date()
+    session.draft.readYear = d.getFullYear()
+    session.draft.readMonth = d.getMonth() + 1
+  }
+
   await ctx.answerCbQuery(`Выбрано: ${getStatusLabel(session.draft.status)}`)
   // Возвращаем в главное меню с обновленным статусом
   await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
 })
+
+// Открыть подменю даты
+bot.action('open_date_menu', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  await ctx.answerCbQuery()
+  await renderCard(ctx, session.draft, getDateKeyboard(session.draft))
+})
+
+// Переключение года в меню даты
+bot.action(/^set_year_(\d+)$/, async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.draft.readYear = Number(ctx.match[1])
+  await ctx.answerCbQuery(`${session.draft.readYear} год`)
+  await renderCard(ctx, session.draft, getDateKeyboard(session.draft))
+})
+
+// Выбор месяца в меню даты
+bot.action(/^set_month_(\d+)_(\d+)$/, async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  const m = Number(ctx.match[1])
+  const y = Number(ctx.match[2])
+  session.draft.readMonth = m
+  session.draft.readYear = y
+  await ctx.answerCbQuery(`${getMonthLabel(m)} ${y}`)
+  await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
+})
+
+// Сброс даты ("Без даты")
+bot.action('set_date_null', async (ctx) => {
+  const session = userSessions.get(ctx.from.id)
+  if (!session) return ctx.answerCbQuery('Сессия устарела.')
+  session.draft.readMonth = null
+  session.draft.readYear = null
+  await ctx.answerCbQuery('Без даты')
+  await renderCard(ctx, session.draft, getMainKeyboard(session.draft))
+})
+
+// Заглушка для заголовка года
+bot.action('noop', (ctx) => ctx.answerCbQuery())
 
 // Открыть подменю оценки
 bot.action('open_rating_menu', async (ctx) => {
@@ -806,9 +967,8 @@ bot.action('save_book', async (ctx) => {
     const authorId = await upsertAuthor(draft.author)
     const bookId = crypto.randomUUID()
 
-    const now = new Date()
-    const readMonth = draft.status === 'read' ? now.getMonth() + 1 : null
-    const readYear = draft.status === 'read' ? now.getFullYear() : null
+    const readMonth = draft.status === 'read' ? (draft.readMonth || null) : null
+    const readYear = draft.status === 'read' ? (draft.readYear || null) : null
 
     const isWant = draft.status === 'want_to_read'
     const { error: insertError } = await supabase.from('books').insert({
@@ -834,12 +994,14 @@ bot.action('save_book', async (ctx) => {
     const genresText = draft.tags && draft.tags.length > 0 ? `\n🏷 Жанры: ${draft.tags.join(', ')}` : ''
     const formatSuccessLine = !isWant ? `\n📦 Формат: ${getFormatLabel(draft.format)}` : ''
     const ratingSuccessLine = draft.status === 'read' && draft.rating != null ? `\n⭐ Оценка: *${draft.rating} / 10*` : ''
+    const dateSuccessLine = draft.status === 'read' && readMonth && readYear ? `\n🗓 Прочитано: *${getMonthLabel(readMonth)} ${readYear}*` : ''
 
     await ctx.replyWithMarkdown(
       `🎉 *Книга «${draft.title}» (${draft.author || 'Без автора'}) успешно добавлена в библиотеку!*\n\n` +
       `📌 Статус: ${getStatusLabel(draft.status)}` +
       formatSuccessLine +
       ratingSuccessLine +
+      dateSuccessLine +
       `\n📄 Страниц: *${draft.pages}*${genresText}\n\n` +
       `🌐 Открыть в трекере:\nhttps://reading-tracker-ten-rho.vercel.app/`
     )
