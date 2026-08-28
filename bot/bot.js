@@ -116,6 +116,109 @@ async function syncBookTags(bookId, tags) {
   }
 }
 
+const GENRE_RULES = [
+  {
+    tag: 'Детектив',
+    keywords: [
+      'детектив', 'детективы', 'расследовани', 'криминал', 'убийств', 'исчезновени',
+      'тайны', 'маньяк', 'холодное дело', 'сыщик', 'полиция', 'следстви', 'инспектор',
+      'mystery', 'detective', 'crime', 'investigation', 'police', 'carmen mola', 'мола', 'несбё', 'кристи', 'конан дойл', 'марс', 'маррс'
+    ],
+  },
+  {
+    tag: 'Триллер',
+    keywords: [
+      'триллер', 'триллеры', 'саспенс', 'психологический триллер', 'острые предметы',
+      'исчезнувшая', 'напряжени', 'похищени', 'заложник', 'преследовани', 'thriller', 'suspense', 'психопат'
+    ],
+  },
+  {
+    tag: 'Психология',
+    keywords: [
+      'психолог', 'психотерапи', 'самооценк', 'мозг', 'эмоци', 'мышлени', 'психик',
+      'травм', 'биполярн', 'депресси', 'расстройств', 'терапи', 'отношени', 'чувств',
+      'psychology', 'counseling', 'neuroscience', 'грэй', 'лабковский', 'курпатов', 'фрейд', 'юнг'
+    ],
+  },
+  {
+    tag: 'Саморазвитие',
+    keywords: [
+      'саморазвити', 'продуктивност', 'привычк', 'успех', 'мотиваци', 'цели', 'дисциплин',
+      'тайм-менеджмент', 'личностный рост', 'самосовершенствовани', 'self-help', 'personal growth', 'habit'
+    ],
+  },
+  {
+    tag: 'Нон-фикшн',
+    keywords: [
+      'нон-фикшн', 'non-fiction', 'научпоп', 'биографи', 'мемуар', 'исследовани', 'наук',
+      'истори', 'документальн', 'популярная наука', 'science', 'biography'
+    ],
+  },
+  {
+    tag: 'Фантастика',
+    keywords: [
+      'фантастик', 'sci-fi', 'космос', 'будуще', 'киберпанк', 'антиутопи', 'утопи',
+      'роботы', 'искусственный интеллект', 'science fiction', 'dystopia', 'оруэлл', 'брэдбери', 'азимов', 'стругацк'
+    ],
+  },
+  {
+    tag: 'Фэнтези',
+    keywords: [
+      'фэнтези', 'маги', 'дракон', 'эльф', 'меч', 'колдовств', 'ведьм', 'заклинани',
+      'fantasy', 'dark fantasy', 'magic', 'толкин', 'марти', 'роулинг', 'сапковский', 'сандерсон'
+    ],
+  },
+  {
+    tag: 'Классика',
+    keywords: [
+      'классик', 'роман-эпопея', 'шедевр', 'достоевск', 'толстой', 'булгаков', 'чехов',
+      'гоголь', 'пушкин', 'тургенев', 'classics', 'classic literature'
+    ],
+  },
+  {
+    tag: 'Бизнес',
+    keywords: [
+      'бизнес', 'маркетинг', 'стартап', 'менеджмент', 'экономик', 'деньги', 'инвестици',
+      'продаж', 'финансы', 'управление', 'business', 'economics', 'finance', 'management'
+    ],
+  },
+  {
+    tag: 'Роман',
+    keywords: [
+      'любовный роман', 'романтич', 'драма', 'любовь', 'судьба', 'romance', 'love story', 'проза', 'fiction / general'
+    ],
+  },
+  {
+    tag: 'Ужасы',
+    keywords: [
+      'ужасы', 'хоррор', 'мистика', 'привидени', 'кошмар', 'демон', 'horror', 'ghost', 'кинг'
+    ],
+  },
+  {
+    tag: 'Философия',
+    keywords: [
+      'философи', 'смысл жизни', 'стоицизм', 'ницше', 'кант', 'этик', 'philosophy'
+    ],
+  },
+  {
+    tag: 'Приключения',
+    keywords: [
+      'приключени', 'путешестви', 'экспедици', 'пираты', 'выживани', 'adventure'
+    ],
+  },
+]
+
+function extractGenresFromText(text) {
+  const normalized = (text || '').toLowerCase()
+  const detected = []
+  for (const item of GENRE_RULES) {
+    if (item.keywords.some((kw) => normalized.includes(kw))) {
+      detected.push(item.tag)
+    }
+  }
+  return detected
+}
+
 // Поиск книги в Google Books API
 async function searchBook(query) {
   try {
@@ -131,12 +234,15 @@ async function searchBook(query) {
       coverUrl = coverUrl.replace('http://', 'https://')
     }
 
+    const rawGenresText = `${info.title || ''} ${info.description || ''} ${(info.categories || []).join(' ')}`
+    const detectedTags = extractGenresFromText(rawGenresText)
+
     return {
       title: info.title || query,
       author: info.authors ? info.authors.join(', ') : '',
       coverUrl: coverUrl,
       pages: info.pageCount || 350,
-      tags: info.categories || [],
+      tags: detectedTags.length > 0 ? detectedTags : (info.categories || []),
     }
   } catch (err) {
     console.error('Error searching Google Books:', err)
@@ -262,11 +368,12 @@ async function fetchByUrl(urlStr) {
               coverUrl = typeof item.image === 'string' ? item.image : (Array.isArray(item.image) ? item.image[0] : item.image.url)
             }
             if (!pages && (item.numberOfPages || item.pageCount)) {
-              pages = parseInt(item.numberOfPages || item.pageCount, 10)
+              const num = parseInt(item.numberOfPages || item.pageCount, 10)
+              if (num && num > 10 && num < 5000) pages = num
             }
             if (item.genre) {
-              if (typeof item.genre === 'string') tags.push(item.genre)
-              else if (Array.isArray(item.genre)) tags.push(...item.genre)
+              if (typeof item.genre === 'string') tags.push(...extractGenresFromText(item.genre))
+              else if (Array.isArray(item.genre)) tags.push(...extractGenresFromText(item.genre.join(' ')))
             }
           }
         }
@@ -295,18 +402,38 @@ async function fetchByUrl(urlStr) {
         ''
     }
 
-    // 3. Поиск страниц в тексте
+    // 3. Точный поиск страниц в характеристиках и JSON (без ложных совпадений с адресами)
     if (!pages) {
-      const pagesMatch = html.match(/(?:Объем|Количество страниц|страниц|стр\.)\s*[:—]?\s*(\d{2,4})/i)
-      if (pagesMatch) {
-        pages = parseInt(pagesMatch[1], 10)
+      const pageSelector = $('[itemprop="numberOfPages"]').text() || $('[itemprop="pageCount"]').text()
+      if (pageSelector && parseInt(pageSelector, 10) > 10) {
+        pages = parseInt(pageSelector, 10)
       }
     }
 
-    // 4. Очистка названия и автора
+    if (!pages) {
+      const pageRegexes = [
+        /["']numberOfPages["']\s*:\s*["']?(\d{2,4})["']?/i,
+        /["']pageCount["']\s*:\s*["']?(\d{2,4})["']?/i,
+        /(?:Количество страниц|Кол-во страниц|Число страниц|Объем книги)\s*[:—"?\s]+(\d{2,4})\b/i,
+      ]
+      for (const r of pageRegexes) {
+        const m = html.match(r)
+        if (m && parseInt(m[1], 10) > 10 && parseInt(m[1], 10) < 5000) {
+          pages = parseInt(m[1], 10)
+          break
+        }
+      }
+    }
+
+    // 4. Поиск жанров в разметке и тексте страницы
+    const pageText = `${rawTitle} ${$('meta[name="description"]').attr('content') || ''} ${$('meta[name="keywords"]').attr('content') || ''} ${$('.breadcrumbs').text() || ''}`
+    const directGenres = extractGenresFromText(pageText)
+    tags.push(...directGenres)
+
+    // 5. Очистка названия и автора
     const { title, author } = cleanBookTitleAndAuthor(rawTitle, rawAuthor)
 
-    // 5. Обработка URL обложки (protocol-relative //, относительные /, LitRes ID)
+    // 6. Обработка URL обложки (protocol-relative //, относительные /, LitRes ID)
     if (coverUrl) {
       if (coverUrl.startsWith('//')) {
         coverUrl = `https:${coverUrl}`
@@ -324,17 +451,28 @@ async function fetchByUrl(urlStr) {
       }
     }
 
-    // 6. Обогащение через Google Books если не хватает обложки, страниц или жанров
+    // 7. Поиск ISBN для точного определения страниц и жанров
+    const isbnMatch = (rawTitle + ' ' + urlStr + ' ' + html).match(/\b(?:ISBN\s*)?(97[89][-\s\d]{10,})\b/i)
+    const cleanIsbn = isbnMatch ? isbnMatch[1].replace(/[-\s]/g, '') : null
+
+    // 8. Обогащение через Google Books если не хватает страниц, жанров или обложки
     if (!pages || tags.length === 0 || !coverUrl) {
       try {
-        const query = `${title} ${author}`.trim()
+        const query = cleanIsbn ? `isbn:${cleanIsbn}` : `${title} ${author}`.trim()
         const gb = await searchBook(query)
         if (gb) {
           if (!pages && gb.pages) pages = gb.pages
-          if (tags.length === 0 && gb.tags?.length) tags.push(...gb.tags)
           if (!coverUrl && gb.coverUrl) coverUrl = gb.coverUrl
+          if (gb.tags?.length) {
+            tags.push(...extractGenresFromText(gb.tags.join(' ')))
+          }
         }
       } catch {}
+    }
+
+    // Дополнительный смысловой анализ по названию и автору
+    if (tags.length === 0) {
+      tags.push(...extractGenresFromText(`${title} ${author}`))
     }
 
     return {
@@ -402,7 +540,7 @@ function getDraftCaption(draft) {
     `✍️ Автор: <b>${escapeHtml(draft.author || 'Не указан')}</b>\n` +
     `📄 Страниц: <b>${draft.pages || 350}</b>\n` +
     `🏷 Жанры: <b>${genresText}</b>\n` +
-    `📌 Статус: <b>${escapeHtml(getStatusLabel(draft.status))}</b>` +
+    `Статус: <b>${escapeHtml(getStatusLabel(draft.status))}</b>` +
     formatLine +
     ratingLine +
     dateLine
@@ -421,7 +559,7 @@ function getMainKeyboard(draft) {
     const dateLabel = draft.readMonth && draft.readYear ? `🗓 ${SHORT_MONTHS[draft.readMonth - 1]} ${draft.readYear}` : '🗓 Без даты'
     return Markup.inlineKeyboard([
       [
-        Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
+        Markup.button.callback(getStatusLabel(draft.status), 'open_status_menu'),
         Markup.button.callback(`📦 ${getFormatLabel(draft.format)}`, 'open_format_menu'),
       ],
       [
@@ -440,9 +578,9 @@ function getMainKeyboard(draft) {
   }
 
   const firstRow = isWant
-    ? [Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu')]
+    ? [Markup.button.callback(getStatusLabel(draft.status), 'open_status_menu')]
     : [
-        Markup.button.callback(`📌 ${getStatusLabel(draft.status)}`, 'open_status_menu'),
+        Markup.button.callback(getStatusLabel(draft.status), 'open_status_menu'),
         Markup.button.callback(`📦 ${getFormatLabel(draft.format)}`, 'open_format_menu'),
       ]
 
