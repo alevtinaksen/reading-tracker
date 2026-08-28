@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   BookOpen,
+  Calendar,
   Flame,
   Headphones,
   Smartphone,
@@ -193,9 +194,15 @@ export function Dashboard({ books }) {
       icon: Star,
     },
     {
-      label: 'СКОРОСТЬ ЧТЕНИЯ',
+      label: 'СРЕДНЕЕ В МЕСЯЦ',
       value: readingSpeed,
-      hint: pagesPerDay > 0 ? `~${pagesPerDay} стр./день` : 'книг в месяц',
+      hint: isAllYears ? 'в среднем за месяц' : 'книг в месяц',
+      icon: Calendar,
+    },
+    {
+      label: 'СКОРОСТЬ ЧТЕНИЯ',
+      value: pagesPerDay > 0 ? `~${pagesPerDay}` : '0',
+      hint: 'страниц в день',
       icon: TrendingUp,
     },
     {
@@ -274,38 +281,38 @@ export function Dashboard({ books }) {
 
       {/* Bento Grid со строгими отступами */}
       <div className="space-y-1 pb-16">
-        {/* 1. 5 Карточек ключевых показателей */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1">
+        {/* 1. 6 Карточек ключевых показателей в одном ряду */}
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
               <article
                 key={stat.label}
-                className="flex flex-col justify-between rounded-[20px] bg-white p-3.5 pl-5 min-h-[110px]"
+                className="flex flex-col justify-between rounded-[20px] bg-white p-3.5 pl-4 min-h-[110px]"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
                     {stat.label}
                   </span>
-                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
-                    <Icon size={16} strokeWidth={2} />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
+                    <Icon size={15} strokeWidth={2} />
                   </div>
                 </div>
 
                 <div className="mt-2.5">
-                  <p className="text-2xl sm:text-3xl font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
+                  <p className="text-2xl font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
                     {stat.value}
                   </p>
-                  <p className="mt-1 text-[11px] sm:text-xs font-medium text-gray-400 truncate">{stat.hint}</p>
+                  <p className="mt-1 text-[11px] font-medium text-gray-400 truncate">{stat.hint}</p>
                 </div>
               </article>
             )
           })}
         </section>
 
-        {/* 2. Карта активности по месяцам — 12 эстетичных интерактивных карточек */}
+        {/* 2. Минималистичный график активности по месяцам */}
         <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-gray-100">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold tracking-tight text-gray-900">
                 Активность по месяцам
@@ -314,70 +321,55 @@ export function Dashboard({ books }) {
                 {totalYearCount} {plural(totalYearCount, 'книга', 'книги', 'книг')} {isAllYears ? 'за все время' : `за ${filterYear} год`}
               </p>
             </div>
-            <div className="flex items-center gap-3 text-xs font-semibold text-gray-500">
-              {maxMonthCount > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-gray-800">
-                  <Flame size={13} className="text-amber-500" />
-                  <span>Пик: {bestMonthName} ({maxMonthCount} кн.)</span>
-                </span>
-              ) : null}
-              <span className="hidden sm:inline text-gray-300">|</span>
-              <span className="hidden sm:inline text-gray-400">
-                Среднее: {(totalYearCount / 12).toFixed(1)} кн/мес
-              </span>
-            </div>
           </div>
 
-          {/* Сетка 12 месяцев */}
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
+          {/* 12-колоночная визуализация динамики */}
+          <div className="mt-8 grid grid-cols-12 gap-1 sm:gap-3 items-end h-44 px-1">
             {monthsData.map((m) => {
               const isPeak = m.count > 0 && m.count === maxMonthCount
-              const fillPct = maxMonthCount > 0 ? Math.round((m.count / maxMonthCount) * 100) : 0
+              const heightPct = maxMonthCount > 0 ? Math.max(12, Math.round((m.count / maxMonthCount) * 100)) : 6
 
               return (
-                <div
-                  key={m.value}
-                  className={`group relative flex flex-col justify-between rounded-2xl p-4 transition-all duration-200 border ${
-                    isPeak
-                      ? 'border-gray-900 bg-gray-900 text-white shadow-xs'
-                      : m.count > 0
-                        ? 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-xs text-gray-900'
-                        : 'border-transparent bg-gray-50/60 text-gray-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold ${isPeak ? 'text-white' : m.count > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {m.month}
-                    </span>
+                <div key={m.value} className="group relative flex flex-col items-center h-full justify-end select-none">
+                  {/* Число над столбиком */}
+                  <div className="mb-2 transition-all duration-200 group-hover:-translate-y-1">
                     {isPeak ? (
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 text-white px-1.5 py-0.5 rounded-md">
-                        Топ
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-900 px-1.5 py-0.5 text-[10px] font-black text-white shadow-xs">
+                        🔥 {m.count}
                       </span>
-                    ) : null}
-                  </div>
-
-                  <div className="my-2">
-                    <div className="flex items-baseline gap-1">
-                      <span className={`text-2xl font-black tracking-tight leading-none ${isPeak ? 'text-white' : m.count > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                    ) : m.count > 0 ? (
+                      <span className="text-xs font-black text-gray-900">
                         {m.count}
                       </span>
-                      <span className={`text-[11px] font-medium ${isPeak ? 'text-white/70' : m.count > 0 ? 'text-gray-400' : 'text-gray-300'}`}>
-                        {m.count > 0 ? plural(m.count, 'кн.', 'кн.', 'кн.') : 'книг'}
+                    ) : (
+                      <span className="text-[11px] font-normal text-transparent opacity-0 group-hover:opacity-40 group-hover:text-gray-400">
+                        0
                       </span>
-                    </div>
-                    {m.pages > 0 ? (
-                      <p className={`mt-0.5 text-[10px] font-medium truncate ${isPeak ? 'text-white/60' : 'text-gray-400'}`}>
-                        {m.pages.toLocaleString('ru-RU')} стр.
-                      </p>
-                    ) : null}
+                    )}
                   </div>
 
-                  {/* Индикатор активности */}
-                  <div className={`h-1.5 w-full rounded-full overflow-hidden ${isPeak ? 'bg-white/20' : 'bg-gray-100'}`}>
+                  {/* Вертикальный бар */}
+                  <div className="w-full flex justify-center items-end flex-1">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${isPeak ? 'bg-white' : 'bg-gray-900'}`}
-                      style={{ width: `${fillPct}%` }}
+                      style={{ height: m.count > 0 ? `${heightPct}%` : '6px' }}
+                      className={`w-full max-w-[24px] sm:max-w-[36px] rounded-full transition-all duration-300 ${
+                        isPeak
+                          ? 'bg-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.18)]'
+                          : m.count > 0
+                            ? 'bg-gray-800/90 group-hover:bg-gray-900 group-hover:scale-y-105'
+                            : 'bg-gray-100 group-hover:bg-gray-200'
+                      }`}
                     />
+                  </div>
+
+                  {/* Подпись месяца и страниц */}
+                  <div className="mt-3 text-center">
+                    <p className={`text-[11px] sm:text-xs font-bold ${isPeak ? 'text-gray-900 font-extrabold' : m.count > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
+                      {m.month.slice(0, 3)}
+                    </p>
+                    <p className="text-[10px] font-medium text-gray-400 truncate max-w-[40px] sm:max-w-[48px]">
+                      {m.pages > 0 ? (m.pages >= 1000 ? `${(m.pages / 1000).toFixed(1)}k` : m.pages) : '—'}
+                    </p>
                   </div>
                 </div>
               )

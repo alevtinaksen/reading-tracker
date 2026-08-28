@@ -144,12 +144,23 @@ async function searchBook(query) {
   }
 }
 
+function escapeHtml(str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 // Умный парсинг метаданных по URL
 async function fetchByUrl(urlStr) {
   try {
     const res = await fetch(urlStr, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
       }
     })
     const html = await res.text()
@@ -192,7 +203,7 @@ async function fetchByUrl(urlStr) {
 
     // 2. OpenGraph и селекторы
     if (!title) {
-      title = $('meta[property="og:title"]').attr('content') || $('title').text()
+      title = $('meta[property="og:title"]').attr('content') || $('title').text() || ''
     }
     if (!author) {
       author = $('meta[name="author"]').attr('content') ||
@@ -207,29 +218,34 @@ async function fetchByUrl(urlStr) {
       coverUrl = $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || ''
     }
 
-    // 3. Поиск страниц в тексте, если не найдено
+    // Обработка формата LiveLib: «Название». Автор: Имя Фамилия
+    if (title.includes('Автор:') || title.includes('автор:')) {
+      const llMatch = title.match(/«?([^»\.]+)[»\.]*\s*[Аа]втор:\s*(.+)/i)
+      if (llMatch) {
+        title = llMatch[1].trim()
+        if (!author) author = llMatch[2].trim()
+      }
+    }
+
+    // 3. Поиск страниц в тексте
     if (!pages) {
       const pagesMatch = html.match(/(?:Объем|Количество страниц|страниц|стр\.)\s*[:—]?\s*(\d{2,4})/i)
       if (pagesMatch) {
         pages = parseInt(pagesMatch[1], 10)
-      } else {
-        pages = 350
       }
     }
 
-    // 4. Очистка заголовка и извлечение автора из формата «Название — Автор Издательство»
+    // 4. Очистка заголовка и автора от суффиксов
     title = title.replace(/\s*—\s*(?:книга на|купить на|читать на|скачать|интернет-магазин).*$/i, '').trim()
-    title = title.replace(/\s*\|\s*(?:Литрес|Читай-город|Лабиринт|LiveLib).*$/i, '').trim()
+    title = title.replace(/\s*\|\s*(?:Литрес|Читай-город|Лабиринт|LiveLib|ЛитРес).*$/i, '').trim()
     title = title.replace(/^«|»$/g, '').trim()
 
-    // Если заголовок содержит тире и автор пустой или в заголовке
     if (title.includes(' — ') || title.includes(' - ')) {
       const parts = title.split(/\s+[—\-]\s+/)
       if (parts.length >= 2) {
         const potentialTitle = parts[0].trim().replace(/^«|»$/g, '')
         let potentialAuthor = parts[1].trim()
 
-        // Убираем название издательств на конце
         potentialAuthor = potentialAuthor
           .replace(/\s+(?:София|АСТ|Эксмо|Азбука|МИФ|Питер|Альпина|Издательство|Медиа|Группа|ЛитРес|LiveLib|Лабиринт).*$/i, '')
           .trim()
@@ -241,11 +257,34 @@ async function fetchByUrl(urlStr) {
       }
     }
 
+    // LitRes прямая ссылка на JPG (Telegram не поддерживает некоторые webp)
+    if (urlStr.includes('litres.ru')) {
+      const match = urlStr.match(/-(\d+)(?:\/|\?|$)/) || urlStr.match(/\/(\d+)(?:\/|\?|$)/)
+      if (match && match[1]) {
+        coverUrl = `https://www.litres.ru/pub/c/cover_415/${match[1]}.jpg`
+      }
+    } else if (coverUrl && coverUrl.endsWith('.webp')) {
+      coverUrl = coverUrl.replace(/\.webp$/i, '.jpg')
+    }
+
+    // 5. Обогащение через Google Books если нет страниц или жанров
+    if (!pages || tags.length === 0) {
+      try {
+        const query = `${title} ${author}`.trim()
+        const gb = await searchBook(query)
+        if (gb) {
+          if (!pages && gb.pages) pages = gb.pages
+          if (tags.length === 0 && gb.tags?.length) tags.push(...gb.tags)
+          if (!coverUrl && gb.coverUrl) coverUrl = gb.coverUrl
+        }
+      } catch {}
+    }
+
     return {
       title: title || 'Без названия',
       author: stripPatronymic(author),
       coverUrl,
-      pages,
+      pages: pages || 350,
       tags: [...new Set(tags)],
     }
   } catch (err) {
@@ -279,18 +318,18 @@ function getFormatLabel(format) {
 
 // Карточка описания книги
 function getDraftCaption(draft) {
-  const genresText = draft.tags && draft.tags.length > 0 ? draft.tags.join(', ') : 'Не выбраны'
+  const genresText = draft.tags && draft.tags.length > 0 ? draft.tags.map(escapeHtml).join(', ') : 'Не выбраны'
   const isWant = draft.status === 'want_to_read'
   const isRead = draft.status === 'read'
-  const formatLine = !isWant ? `\n📦 Формат: *${getFormatLabel(draft.format)}*` : ''
-  const ratingLine = isRead ? `\n⭐ Оценка: *${draft.rating != null ? draft.rating + ' / 10' : 'Без оценки'}*` : ''
+  const formatLine = !isWant ? `\n📦 Формат: <b>${escapeHtml(getFormatLabel(draft.format))}</b>` : ''
+  const ratingLine = isRead ? `\n⭐ Оценка: <b>${draft.rating != null ? draft.rating + ' / 10' : 'Без оценки'}</b>` : ''
 
   return (
-    `📖 *${draft.title}*\n` +
-    `✍️ Автор: *${draft.author || 'Не указан'}*\n` +
-    `📄 Страниц: *${draft.pages}*\n` +
-    `🏷 Жанры: *${genresText}*\n` +
-    `📌 Статус: *${getStatusLabel(draft.status)}*` +
+    `📖 <b>${escapeHtml(draft.title)}</b>\n` +
+    `✍️ Автор: <b>${escapeHtml(draft.author || 'Не указан')}</b>\n` +
+    `📄 Страниц: <b>${draft.pages || 350}</b>\n` +
+    `🏷 Жанры: <b>${genresText}</b>\n` +
+    `📌 Статус: <b>${escapeHtml(getStatusLabel(draft.status))}</b>` +
     formatLine +
     ratingLine
   )
@@ -448,30 +487,48 @@ function getEditKeyboard() {
 // Хелпер обновления карточки в Telegram
 async function renderCard(ctx, draft, keyboard) {
   const caption = getDraftCaption(draft)
-  try {
-    if (ctx.callbackQuery) {
+
+  // 1. Если это нажатие inline-кнопки (callback query)
+  if (ctx.callbackQuery) {
+    try {
       await ctx.editMessageCaption(caption, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         ...keyboard
       })
-    } else {
-      if (draft.coverUrl) {
-        await ctx.replyWithPhoto(draft.coverUrl, {
-          caption,
-          parse_mode: 'Markdown',
+      return
+    } catch {
+      try {
+        await ctx.editMessageText(caption, {
+          parse_mode: 'HTML',
           ...keyboard
         })
-      } else {
-        await ctx.replyWithMarkdown(caption, keyboard)
-      }
+        return
+      } catch {}
     }
-  } catch {
+  }
+
+  // 2. Если это новое сообщение: отправляем фото или обычный текст
+  if (draft.coverUrl) {
     try {
-      await ctx.editMessageText(caption, {
-        parse_mode: 'Markdown',
+      await ctx.replyWithPhoto(draft.coverUrl, {
+        caption,
+        parse_mode: 'HTML',
         ...keyboard
       })
-    } catch {}
+      return
+    } catch (err) {
+      console.warn('Failed to send photo with coverUrl, falling back to text:', draft.coverUrl, err.message)
+    }
+  }
+
+  // Фоллбек на отправку текста
+  try {
+    await ctx.reply(caption, {
+      parse_mode: 'HTML',
+      ...keyboard
+    })
+  } catch (err) {
+    console.error('Failed to send card message:', err)
   }
 }
 
