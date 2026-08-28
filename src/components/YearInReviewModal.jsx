@@ -142,113 +142,133 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
           </div>
         </header>
 
-        {/* Инфографический постер итогов года */}
-        <div className="p-6 sm:p-7">
-          <div className="rounded-[24px] bg-[#111827] p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+        {/* Инфографический постер итогов года в светлом премиальном стиле */}
+        <div className="overflow-y-auto p-6 sm:p-7 space-y-4">
+          <div className="rounded-[28px] border border-gray-100 bg-[#F9FAFB] p-6 shadow-xs">
+            {/* Шапка карточки */}
+            <div className="flex items-center justify-between border-b border-gray-200/70 pb-4">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
-                  READING LOG SUMMARY
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  Книжная статистика
                 </span>
-                <h3 className="text-2xl font-black tracking-tight">{selectedYear} ГОД</h3>
+                <h3 className="text-2xl font-extrabold tracking-tight text-gray-900">
+                  {selectedYear} год
+                </h3>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
-                <Trophy size={20} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white border border-gray-200/80 text-gray-900 shadow-2xs">
+                <Trophy size={20} strokeWidth={2} />
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2.5">
-              <div className="rounded-2xl bg-white/5 p-3.5 border border-white/5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+            {/* 4 ключевые метрики года */}
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-2xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                   Прочитано
                 </span>
-                <p className="mt-1 text-3xl font-black">{totalBooks}</p>
-                <p className="text-[11px] text-gray-400">{plural(totalBooks, 'книга', 'книги', 'книг')}</p>
+                <p className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight">{totalBooks}</p>
+                <p className="text-xs font-medium text-gray-400">{plural(totalBooks, 'книга', 'книги', 'книг')}</p>
               </div>
 
-              <div className="rounded-2xl bg-white/5 p-3.5 border border-white/5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-2xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                   Средний балл
                 </span>
-                <p className="mt-1 text-3xl font-black">{avgRating}</p>
-                <p className="text-[11px] text-gray-400">из 10 ★</p>
+                <p className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight">{avgRating}</p>
+                <p className="text-xs font-medium text-gray-400">из 10 ★</p>
               </div>
             </div>
 
+            {/* Страницы */}
             {totalPages > 0 ? (
-              <div className="mt-2.5 rounded-2xl bg-white/5 p-3.5 border border-white/5 flex items-center justify-between">
+              <div className="mt-2.5 flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-2xs">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Общий объём
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    Прочитано страниц
                   </span>
-                  <p className="text-lg font-black">{totalPages.toLocaleString('ru-RU')} страниц</p>
+                  <p className="text-xl font-extrabold text-gray-900 tracking-tight">
+                    {totalPages.toLocaleString('ru-RU')} <span className="text-xs font-medium text-gray-400">страниц</span>
+                  </p>
                 </div>
-                <BookOpen size={20} className="text-gray-500" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-700">
+                  <BookOpen size={18} strokeWidth={2} />
+                </div>
               </div>
             ) : null}
 
             {/* Топ автор и Топ жанр */}
             <div className="mt-2.5 grid grid-cols-2 gap-2.5">
               {topAuthor ? (
-                <div className="rounded-2xl bg-white/5 p-3 border border-white/5">
+                <div className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Автор года
+                    Любимый автор
                   </span>
-                  <p className="mt-1 text-xs font-bold truncate">{topAuthor.name}</p>
-                  <p className="text-[10px] text-gray-400">{topAuthor.count} {plural(topAuthor.count, 'книга', 'книги', 'книг')}</p>
+                  <p className="mt-1 text-xs font-bold text-gray-900 truncate">{topAuthor.name}</p>
+                  <p className="text-[11px] font-medium text-gray-400">
+                    {topAuthor.count} {plural(topAuthor.count, 'книга', 'книги', 'книг')}
+                  </p>
                 </div>
               ) : null}
 
               {topGenre ? (
-                <div className="rounded-2xl bg-white/5 p-3 border border-white/5">
+                <div className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                     Любимый жанр
                   </span>
-                  <p className="mt-1 text-xs font-bold truncate">#{topGenre.name}</p>
-                  <p className="text-[10px] text-gray-400">{topGenre.count} {plural(topGenre.count, 'книга', 'книги', 'книг')}</p>
+                  <p className="mt-1 text-xs font-bold text-gray-900 truncate">#{topGenre.name}</p>
+                  <p className="text-[11px] font-medium text-gray-400">
+                    {topGenre.count} {plural(topGenre.count, 'книга', 'книги', 'книг')}
+                  </p>
                 </div>
               ) : null}
             </div>
 
-            {/* Книга года */}
+            {/* Главная книга года */}
             {bestBook ? (
-              <div className="mt-2.5 rounded-2xl bg-white/5 p-3.5 border border-white/5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Главная книга года
-                  </span>
-                  {bestBook.rating ? (
-                    <span className="inline-flex items-center gap-0.5 text-xs font-bold text-white">
-                      <Star size={11} className="fill-white" />
-                      <span>{bestBook.rating}</span>
+              <div className="mt-2.5 flex items-center gap-3.5 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-2xs">
+                {bestBook.coverUrl ? (
+                  <img
+                    src={bestBook.coverUrl}
+                    alt={bestBook.title}
+                    className="h-14 w-10 shrink-0 rounded-lg object-cover shadow-2xs"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      Книга года
                     </span>
-                  ) : null}
+                    {bestBook.rating ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-gray-900 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                        <Star size={10} className="fill-white text-white" />
+                        <span>{bestBook.rating}</span>
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-xs font-bold text-gray-900 truncate">{bestBook.title}</p>
+                  <p className="text-[11px] font-medium text-gray-400 truncate">{bestBook.author}</p>
                 </div>
-                <p className="mt-1 text-sm font-extrabold truncate">{bestBook.title}</p>
-                <p className="text-xs text-gray-400 truncate">{bestBook.author}</p>
               </div>
             ) : null}
           </div>
 
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={handleCopySummary}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 active:scale-95 cursor-pointer"
-            >
-              {copied ? (
-                <>
-                  <Check size={15} />
-                  <span>Скопировано в буфер!</span>
-                </>
-              ) : (
-                <>
-                  <Copy size={15} />
-                  <span>Скопировать текст итогов</span>
-                </>
-              )}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleCopySummary}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-gray-800 active:scale-95 cursor-pointer"
+          >
+            {copied ? (
+              <>
+                <Check size={16} strokeWidth={2.5} />
+                <span>Итоги скопированы!</span>
+              </>
+            ) : (
+              <>
+                <Copy size={16} strokeWidth={2} />
+                <span>Скопировать текст итогов</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

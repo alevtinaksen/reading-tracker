@@ -198,28 +198,28 @@ export function Dashboard({ books }) {
 
   const stats = [
     {
-      label: isAllYears ? 'ВСЕГО ПРОЧИТАНО' : `ЗА ${filterYear} ГОД`,
+      label: isAllYears ? 'ВСЕГО ПРОЧИТАНО' : `ПРОЧИТАНО`,
       value: totalYearCount,
-      hint: `${totalYearCount} ${plural(totalYearCount, 'книга', 'книги', 'книг')}`,
+      hint: isAllYears ? 'Всего прочитанных книг' : `Прочитано в ${filterYear} году`,
       icon: Trophy,
     },
     {
       label: 'ПРОЧИТАНО СТРАНИЦ',
-      value: totalPages > 0 ? totalPages.toLocaleString('ru-RU') : '—',
-      hint: avgPagesPerBook ? `~${avgPagesPerBook} стр. в книге` : 'добавляйте страницы к книгам',
+      value: totalPages > 0 ? totalPages.toLocaleString('ru-RU') : '0',
+      hint: avgPagesPerBook ? `~${avgPagesPerBook} стр. в одной книге` : 'страницы не указаны',
       icon: BookOpen,
     },
     {
       label: 'СРЕДНЯЯ ОЦЕНКА',
       value: average,
-      hint: `${rated.length} ${plural(rated.length, 'оценка', 'оценки', 'оценок')}`,
+      hint: rated.length > 0 ? `На основе ${rated.length} ${plural(rated.length, 'оценки', 'оценок', 'оценок')}` : 'нет оценок',
       icon: Star,
     },
     {
-      label: 'ВСЕГО В КАТАЛОГЕ',
-      value: books.length,
-      hint: `${books.filter((b) => b.status === STATUS.read).length} прочитано за все время`,
-      icon: Layers,
+      label: 'ПИК ЧТЕНИЯ',
+      value: bestMonthName,
+      hint: maxMonthCount > 0 ? `${maxMonthCount} ${plural(maxMonthCount, 'прочитанная книга', 'прочитанные книги', 'прочитанных книг')}` : 'нет активности',
+      icon: Flame,
     },
   ]
 
@@ -237,7 +237,7 @@ export function Dashboard({ books }) {
 
   return (
     <div>
-      {/* Заголовок Дашборд с отступами: 120px сверху, 80px снизу */}
+      {/* Заголовок Дашборд с отступами */}
       <header className="relative z-40">
         <h1 className="pt-[120px] pb-[80px] text-center text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-[64px]">
           Дашборд
@@ -277,50 +277,50 @@ export function Dashboard({ books }) {
             })}
           </div>
 
-          {/* Кнопка Итоги года */}
+          {/* Кнопка Итоги года в строгом премиальном черном стиле */}
           <button
             type="button"
             onClick={() => setYearInReviewOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full border border-gray-100/90 bg-white px-5 py-3 text-xs font-bold text-gray-900 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all hover:bg-gray-900 hover:text-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)] active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-xs font-bold text-white shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all hover:bg-gray-800 hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] active:scale-95 cursor-pointer"
           >
-            <Sparkles size={14} className="text-amber-500" />
-            <span>Итоги года</span>
+            <Sparkles size={14} className="text-white" />
+            <span>Итоги {filterYear ? `${filterYear} года` : 'года'}</span>
           </button>
         </div>
       </header>
 
-      {/* Bento Grid со строгими отступами 4px */}
+      {/* Bento Grid со строгими отступами */}
       <div className="space-y-1 pb-16">
-        {/* 1. 4 Карточки ключевых показателей: отступ слева строго 20px (pl-5), остальные 12px (p-3) */}
+        {/* 1. 4 Карточки ключевых показателей */}
         <section className="grid grid-cols-2 gap-1 lg:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
               <article
                 key={stat.label}
-                className="flex flex-col justify-between rounded-[20px] bg-white p-3 pl-5"
+                className="flex flex-col justify-between rounded-[20px] bg-white p-3.5 pl-5"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                     {stat.label}
                   </span>
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
-                    <Icon size={18} strokeWidth={2} />
+                    <Icon size={17} strokeWidth={2} />
                   </div>
                 </div>
 
                 <div className="mt-3">
-                  <p className="text-4xl font-extrabold tracking-[-0.04em] text-gray-900 sm:text-5xl leading-none">
+                  <p className="text-3xl sm:text-4xl font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
                     {stat.value}
                   </p>
-                  <p className="mt-1 text-xs font-medium text-gray-400">{stat.hint}</p>
+                  <p className="mt-1 text-xs font-medium text-gray-400 truncate">{stat.hint}</p>
                 </div>
               </article>
             )
           })}
         </section>
 
-        {/* 2. График «Активность по месяцам» на весь ряд с плавной адаптацией */}
+        {/* 2. График «Активность по месяцам» с идеальной адаптацией */}
         <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -333,108 +333,90 @@ export function Dashboard({ books }) {
             </div>
           </div>
 
-          {/* SVG График с гладкой волной Безье */}
-          <div className="mt-5 w-full overflow-x-auto">
-            <div className="min-w-[580px] sm:min-w-full">
-              <div className="relative h-[220px] w-full">
-                <svg
-                  viewBox="0 0 1000 220"
-                  className="h-full w-full overflow-visible"
-                  preserveAspectRatio="none"
-                >
-                  <defs>
-                    <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#111827" stopOpacity="0.12" />
-                      <stop offset="100%" stopColor="#111827" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
+          {/* SVG График */}
+          <div className="mt-6 w-full">
+            <div className="relative w-full aspect-[2.4/1] sm:aspect-[3.2/1] max-h-[220px]">
+              <svg
+                viewBox="0 0 800 200"
+                className="h-full w-full overflow-visible"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#111827" stopOpacity="0.08" />
+                    <stop offset="100%" stopColor="#111827" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
 
-                  {/* Горизонтальные сетки */}
-                  <line
-                    x1="40"
-                    y1="35"
-                    x2="960"
-                    y2="35"
-                    stroke="#F3F4F6"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                  />
-                  <line
-                    x1="40"
-                    y1="110"
-                    x2="960"
-                    y2="110"
-                    stroke="#F3F4F6"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                  />
-                  <line x1="40" y1="185" x2="960" y2="185" stroke="#F3F4F6" strokeWidth="1" />
+                {/* Горизонтальные направляющие линии */}
+                <line x1="30" y1="25" x2="770" y2="25" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="30" y1="85" x2="770" y2="85" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="30" y1="145" x2="770" y2="145" stroke="#E5E7EB" strokeWidth="1" />
 
-                  {/* Заливка области под графиком */}
-                  <path d={curveData.areaPath} fill="url(#areaGradient)" />
+                {/* Заливка области под графиком */}
+                <path d={curveData.areaPath} fill="url(#areaGradient)" />
 
-                  {/* Плавная линия графика */}
-                  <path
-                    d={curveData.linePath}
-                    fill="none"
-                    stroke="#111827"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                {/* Плавная линия графика */}
+                <path
+                  d={curveData.linePath}
+                  fill="none"
+                  stroke="#111827"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
 
-                  {/* Интерактивные точки со значениями */}
-                  {curveData.coords.map((pt, idx) => {
-                    const isPeak = pt.val > 0 && pt.val === curveData.max
-                    return (
-                      <g key={idx} className="group cursor-pointer">
-                        {/* Невидимая область для легкого ховера */}
-                        <circle cx={pt.x} cy={pt.y} r="18" fill="transparent" />
+                {/* Интерактивные точки со значениями и подписями месяцев */}
+                {curveData.coords.map((pt, idx) => {
+                  const isPeak = pt.val > 0 && pt.val === curveData.max
+                  const monthName = MONTHS[idx]?.label?.slice(0, 3) || ''
 
-                        {/* Точка */}
-                        <circle
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={isPeak ? 5.5 : 4}
-                          className={`transition-all duration-200 ${
-                            isPeak
-                              ? 'fill-gray-900 stroke-white stroke-[2.5px]'
-                              : pt.val > 0
-                                ? 'fill-gray-800'
-                                : 'fill-gray-300'
-                          } group-hover:scale-125 group-hover:fill-gray-900`}
-                        />
+                  return (
+                    <g key={idx} className="group">
+                      {/* Подпись месяца прямо под точкой */}
+                      <text
+                        x={pt.x}
+                        y={172}
+                        textAnchor="middle"
+                        className="fill-gray-400 text-[11px] font-semibold select-none"
+                      >
+                        {monthName}
+                      </text>
 
-                        {/* Значение над точкой при наличии книг */}
-                        {pt.val > 0 ? (
-                          <text
-                            x={pt.x}
-                            y={pt.y - 12}
-                            textAnchor="middle"
-                            className="fill-gray-900 text-[12px] font-bold select-none"
-                          >
-                            {pt.val}
-                          </text>
-                        ) : null}
-                      </g>
-                    )
-                  })}
-                </svg>
-              </div>
+                      {/* Интерактивная точка */}
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={isPeak ? 5 : pt.val > 0 ? 4 : 2.5}
+                        className={`transition-all duration-200 ${
+                          isPeak
+                            ? 'fill-gray-900 stroke-white stroke-[2px]'
+                            : pt.val > 0
+                              ? 'fill-gray-800'
+                              : 'fill-gray-300'
+                        } group-hover:scale-125 group-hover:fill-gray-900`}
+                      />
 
-              {/* Названия месяцев под графиком */}
-              <div className="mt-2 flex justify-between px-6 text-[11px] font-semibold text-gray-400">
-                {MONTHS.map((m) => (
-                  <span key={m.value} className="text-center">
-                    {m.label.slice(0, 3)}
-                  </span>
-                ))}
-              </div>
+                      {/* Значение над точкой */}
+                      {pt.val > 0 ? (
+                        <text
+                          x={pt.x}
+                          y={pt.y - 10}
+                          textAnchor="middle"
+                          className="fill-gray-900 text-[12px] font-bold select-none"
+                        >
+                          {pt.val}
+                        </text>
+                      ) : null}
+                    </g>
+                  )
+                })}
+              </svg>
             </div>
           </div>
         </article>
 
-        {/* 3. Ряд 3: «Цель чтения» + «Книжный темп» на одном уровне */}
+        {/* 3. Ряд 3: «Цель чтения» + «Книжный темп» */}
         <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
           {/* Карточка 1: Цель чтения */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
