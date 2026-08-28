@@ -9,7 +9,6 @@ import {
   Star,
   TrendingUp,
   Trophy,
-  Users,
 } from 'lucide-react'
 import { FORMAT, FORMAT_OPTIONS, MONTHS, STATUS } from '../constants'
 import { YearInReviewModal } from './YearInReviewModal'
@@ -288,22 +287,22 @@ export function Dashboard({ books }) {
             return (
               <article
                 key={stat.label}
-                className="flex flex-col justify-between rounded-[20px] bg-white p-3.5 pl-4 min-h-[110px]"
+                className="flex flex-col justify-between rounded-[20px] bg-white p-4 sm:p-4.5 min-h-[135px] sm:min-h-[142px]"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate">
+                <div className="flex items-start justify-between gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate pt-0.5">
                     {stat.label}
                   </span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0 -mt-0.5 -mr-0.5">
                     <Icon size={15} strokeWidth={2} />
                   </div>
                 </div>
 
-                <div className="mt-2.5">
-                  <p className="text-2xl font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
+                <div>
+                  <p className="text-2xl sm:text-[28px] font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
                     {stat.value}
                   </p>
-                  <p className="mt-1 text-[11px] font-medium text-gray-400 truncate">{stat.hint}</p>
+                  <p className="mt-1 text-[11px] font-medium text-gray-400 truncate leading-tight">{stat.hint}</p>
                 </div>
               </article>
             )
@@ -312,29 +311,27 @@ export function Dashboard({ books }) {
 
         {/* 2. Минималистичный график активности по месяцам */}
         <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold tracking-tight text-gray-900">
-                Активность по месяцам
-              </h2>
-              <p className="mt-0.5 text-xs text-gray-400">
-                {totalYearCount} {plural(totalYearCount, 'книга', 'книги', 'книг')} {isAllYears ? 'за все время' : `за ${filterYear} год`}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-base font-bold tracking-tight text-gray-900 leading-tight">
+              Активность по месяцам
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-400 leading-tight">
+              {totalYearCount} {plural(totalYearCount, 'книга', 'книги', 'книг')} {isAllYears ? 'за все время' : `за ${filterYear} год`}
+            </p>
           </div>
 
           {/* 12-колоночная визуализация динамики */}
-          <div className="mt-8 grid grid-cols-12 gap-1 sm:gap-3 items-end h-44 px-1">
+          <div className="mt-8 grid grid-cols-12 gap-1.5 sm:gap-3 items-end h-56 sm:h-64 px-1 select-none">
             {monthsData.map((m) => {
               const isPeak = m.count > 0 && m.count === maxMonthCount
-              const heightPct = maxMonthCount > 0 ? Math.max(12, Math.round((m.count / maxMonthCount) * 100)) : 6
+              const heightPct = maxMonthCount > 0 ? Math.max(10, Math.round((m.count / maxMonthCount) * 100)) : 4
 
               return (
-                <div key={m.value} className="group relative flex flex-col items-center h-full justify-end select-none">
+                <div key={m.value} className="flex flex-col items-center h-full justify-end">
                   {/* Число над столбиком */}
-                  <div className="mb-2 transition-all duration-200 group-hover:-translate-y-1">
+                  <div className="mb-2">
                     {isPeak ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-900 px-1.5 py-0.5 text-[10px] font-black text-white shadow-xs">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
                         🔥 {m.count}
                       </span>
                     ) : m.count > 0 ? (
@@ -342,7 +339,7 @@ export function Dashboard({ books }) {
                         {m.count}
                       </span>
                     ) : (
-                      <span className="text-[11px] font-normal text-transparent opacity-0 group-hover:opacity-40 group-hover:text-gray-400">
+                      <span className="text-[11px] font-medium text-gray-300">
                         0
                       </span>
                     )}
@@ -352,22 +349,22 @@ export function Dashboard({ books }) {
                   <div className="w-full flex justify-center items-end flex-1">
                     <div
                       style={{ height: m.count > 0 ? `${heightPct}%` : '6px' }}
-                      className={`w-full max-w-[24px] sm:max-w-[36px] rounded-full transition-all duration-300 ${
+                      className={`w-full max-w-[28px] sm:max-w-[42px] rounded-2xl ${
                         isPeak
                           ? 'bg-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.18)]'
                           : m.count > 0
-                            ? 'bg-gray-800/90 group-hover:bg-gray-900 group-hover:scale-y-105'
-                            : 'bg-gray-100 group-hover:bg-gray-200'
+                            ? 'bg-gray-800'
+                            : 'bg-gray-100'
                       }`}
                     />
                   </div>
 
                   {/* Подпись месяца и страниц */}
                   <div className="mt-3 text-center">
-                    <p className={`text-[11px] sm:text-xs font-bold ${isPeak ? 'text-gray-900 font-extrabold' : m.count > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
+                    <p className={`text-[11px] sm:text-xs font-bold leading-tight ${isPeak ? 'text-gray-900 font-extrabold' : m.count > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
                       {m.month.slice(0, 3)}
                     </p>
-                    <p className="text-[10px] font-medium text-gray-400 truncate max-w-[40px] sm:max-w-[48px]">
+                    <p className="mt-0.5 text-[10px] font-medium text-gray-400 truncate max-w-[42px] sm:max-w-[52px] leading-tight">
                       {m.pages > 0 ? (m.pages >= 1000 ? `${(m.pages / 1000).toFixed(1)}k` : m.pages) : '—'}
                     </p>
                   </div>
@@ -381,15 +378,13 @@ export function Dashboard({ books }) {
         <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
           {/* Карточка 1: Цель чтения */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-gray-900">Цель чтения</h2>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  {goalRemaining === 0
-                    ? 'Цель выполнена! Поздравляем!'
-                    : `Осталось прочитать: ${goalRemaining} ${plural(goalRemaining, 'книга', 'книги', 'книг')}`}
-                </p>
-              </div>
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-gray-900 leading-tight">Цель чтения</h2>
+              <p className="mt-0.5 text-xs text-gray-400 leading-tight">
+                {goalRemaining === 0
+                  ? 'Цель выполнена! Поздравляем!'
+                  : `Осталось прочитать: ${goalRemaining} ${plural(goalRemaining, 'книга', 'книги', 'книг')}`}
+              </p>
             </div>
 
             <div className="mt-6">
@@ -400,14 +395,13 @@ export function Dashboard({ books }) {
                     / {READING_GOAL}
                   </span>
                 </span>
-                <span className="text-sm font-extrabold text-gray-900">
-                  {Math.round(goalPercent)}%
-                </span>
+                <span className="text-base font-bold text-gray-500">{Math.round(goalPercent)}%</span>
               </div>
 
-              <div className="mt-3.5 h-3.5 w-full overflow-hidden rounded-full bg-gray-100">
+              {/* Прогресс-бар цели */}
+              <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
                 <div
-                  className="h-full rounded-full bg-gray-900 transition-all duration-700 ease-out"
+                  className="h-full rounded-full bg-gray-900 transition-all duration-500 ease-out"
                   style={{ width: `${goalPercent}%` }}
                 />
               </div>
@@ -416,74 +410,76 @@ export function Dashboard({ books }) {
 
           {/* Карточка 2: Форматы */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-gray-900">Форматы</h2>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  Распределение прочитанных книг по типам
-                </p>
-              </div>
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-gray-900 leading-tight">Форматы</h2>
+              <p className="mt-0.5 text-xs text-gray-400 leading-tight">Распределение по типам книг</p>
             </div>
 
-            <div className="mt-6 space-y-4">
-              <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                {formatCounts.map((item) => {
-                  const pct = totalRead > 0 ? (item.count / totalRead) * 100 : 0
-                  if (pct === 0) return null
-                  return (
-                    <div
-                      key={item.value}
-                      className={`h-full transition-all duration-500 ${formatShades[item.value]}`}
-                      style={{ width: `${pct}%` }}
-                      title={`${item.label}: ${item.count}`}
-                    />
-                  )
-                })}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {formatCounts.map((item) => {
-                  const Icon = formatIcons[item.value]
-                  return (
-                    <div key={item.value} className="rounded-xl bg-gray-50/80 p-3">
-                      <div className="flex items-center gap-1.5 text-gray-400">
-                        <Icon size={14} className="text-gray-700" />
-                        <span className="text-[11px] font-semibold text-gray-500 truncate">
-                          {item.label}
-                        </span>
+            <div className="mt-6 space-y-3.5">
+              {formatCounts.map((item) => {
+                const pct = totalRead > 0 ? (item.count / totalRead) * 100 : 0
+                const Icon = formatIcons[item.value]
+                
+                return (
+                  <div key={item.value} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 font-bold text-gray-800">
+                        <Icon size={14} className="text-gray-500" />
+                        <span>{item.label}</span>
                       </div>
-                      <p className="mt-1.5 text-xl font-bold text-gray-900">{item.count}</p>
+                      <span className="font-semibold text-gray-400">
+                        {item.count} ({Math.round(pct)}%)
+                      </span>
                     </div>
-                  )
-                })}
-              </div>
+
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${formatShades[item.value]}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </article>
         </section>
 
-        {/* 4. Ряд 4: «Жанры и теги» + «Любимые авторы» */}
+        {/* 4. Ряд 4: «Популярные жанры» + «Любимые авторы» */}
         <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
-          {/* Карточка 1: Жанры и теги */}
+          {/* Карточка 1: Популярные жанры */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
             <div>
-              <h2 className="text-base font-bold tracking-tight text-gray-900">Жанры и теги</h2>
-              <p className="mt-0.5 text-xs text-gray-400">Топ-3 ведущих направления</p>
+              <h2 className="text-base font-bold tracking-tight text-gray-900 leading-tight">Популярные жанры</h2>
+              <p className="mt-0.5 text-xs text-gray-400 leading-tight">Топ тематик в вашей библиотеке</p>
             </div>
 
-            <div className="mt-6 space-y-3.5">
-              {genres.slice(0, 3).map(([tag, count]) => {
-                const percent = Math.round((count / maxGenre) * 100)
+            <div className="mt-6 space-y-2.5">
+              {genres.slice(0, 3).map(([tag, count], idx) => {
+                const fillPercent = Math.round((count / maxGenre) * 100)
+
                 return (
-                  <div key={tag} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-bold text-gray-800">
-                      <span>{tag}</span>
-                      <span className="text-xs font-extrabold text-gray-900">{count}</span>
+                  <div
+                    key={tag}
+                    className="flex items-center justify-between rounded-xl bg-gray-50/80 px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[11px] font-extrabold text-white">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-gray-900">{tag}</span>
                     </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-full rounded-full bg-gray-900 transition-all duration-500"
-                        style={{ width: `${percent}%` }}
-                      />
+
+                    <div className="flex items-center gap-3">
+                      <div className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 sm:block">
+                        <div
+                          className="h-full rounded-full bg-gray-900"
+                          style={{ width: `${fillPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-gray-700">
+                        {count} {plural(count, 'книга', 'книги', 'книг')}
+                      </span>
                     </div>
                   </div>
                 )
@@ -496,18 +492,13 @@ export function Dashboard({ books }) {
 
           {/* Карточка 2: Любимые авторы */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-gray-900">Любимые авторы</h2>
-                <p className="mt-0.5 text-xs text-gray-400">Авторы с наибольшим количеством книг</p>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
-                <Users size={18} />
-              </div>
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-gray-900 leading-tight">Любимые авторы</h2>
+              <p className="mt-0.5 text-xs text-gray-400 leading-tight">Авторы с наибольшим количеством книг</p>
             </div>
 
             <div className="mt-6 space-y-2.5">
-              {topAuthors.slice(0, 3).map((item, idx) => {
+              {topAuthors.slice(0, 3).map((item) => {
                 const ratingShade = getRatingShade(item.avgRating)
 
                 return (
