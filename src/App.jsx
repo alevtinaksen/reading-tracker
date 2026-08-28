@@ -135,8 +135,11 @@ function App() {
 
       {/* 2. Основной контент */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 pb-32">
-        {loading ? (
-          <p className="text-sm font-medium text-gray-500">Загрузка…</p>
+        {loading && books.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-28 text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-900 border-t-transparent mb-3" />
+            <p className="text-sm font-semibold text-gray-500">Загрузка библиотеки…</p>
+          </div>
         ) : (
           <>
             {error ? (

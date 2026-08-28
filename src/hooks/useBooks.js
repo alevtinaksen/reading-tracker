@@ -94,47 +94,97 @@ async function syncBookTags(bookId, tags) {
 }
 
 export function useBooks() {
-  const [books, setBooks] = useState([])
-  const [tags, setTags] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [books, setBooks] = useState(() => {
+    try {
+      const cached = localStorage.getItem('reading_tracker_books_cache')
+      return cached ? JSON.parse(cached) : []
+    } catch {
+      return []
+    }
+  })
+  const [tags, setTags] = useState(() => {
+    try {
+      const cached = localStorage.getItem('reading_tracker_tags_cache')
+      return cached ? JSON.parse(cached) : []
+    } catch {
+      return []
+    }
+  })
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem('reading_tracker_books_cache')
+    } catch {
+      return true
+    }
+  })
   const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true
 
     async function load() {
-      setLoading(true)
       setError('')
-      const [booksResult, tagsResult] = await Promise.all([
-        supabase.from('books').select(BOOK_SELECT).order('created_at', { ascending: false }),
-        supabase.from('tags').select('name').order('name'),
-      ])
+      try {
+        // Таймаут на случай медленного соединения или сбоя сети
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Превышено время ожидания ответа сервера')), 8000)
+        )
 
-      if (!active) return
+        const fetchPromise = Promise.all([
+          supabase.from('books').select(BOOK_SELECT).order('created_at', { ascending: false }),
+          supabase.from('tags').select('name').order('name'),
+        ])
 
-      if (booksResult.error) {
-        // Fallback without pages column if Supabase table does not yet have pages column
-        const fallbackResult = await supabase
-          .from('books')
-          .select(
-            `id, title, cover_url, rating, status, format, read_month, read_year, review, quotes, created_at, authors ( id, name ), book_tags ( tags ( id, name ) )`,
-          )
-          .order('created_at', { ascending: false })
+        const [booksResult, tagsResult] = await Promise.race([fetchPromise, timeoutPromise])
 
-        if (fallbackResult.error) {
-          setError(fallbackResult.error.message)
+        if (!active) return
+
+        if (booksResult.error) {
+          // Резервный запрос без колонки pages
+          const fallbackResult = await supabase
+            .from('books')
+            .select(
+              `id, title, cover_url, rating, status, format, read_month, read_year, review, quotes, created_at, authors ( id, name ), book_tags ( tags ( id, name ) )`,
+            )
+            .order('created_at', { ascending: false })
+
+          if (fallbackResult.error) {
+            setError(fallbackResult.error.message)
+          } else {
+            const mapped = (fallbackResult.data ?? []).map(mapBook)
+            setBooks(mapped)
+            try {
+              localStorage.setItem('reading_tracker_books_cache', JSON.stringify(mapped))
+            } catch {}
+          }
         } else {
-          setBooks((fallbackResult.data ?? []).map(mapBook))
+          const mapped = (booksResult.data ?? []).map(mapBook)
+          setBooks(mapped)
+          try {
+            localStorage.setItem('reading_tracker_books_cache', JSON.stringify(mapped))
+          } catch {}
         }
-      } else {
-        setBooks((booksResult.data ?? []).map(mapBook))
-      }
 
-      if (tagsResult.data) {
-        setTags((tagsResult.data ?? []).map((tag) => tag.name))
+        if (tagsResult?.data) {
+          const mappedTags = (tagsResult.data ?? []).map((tag) => tag.name)
+          setTags(mappedTags)
+          try {
+            localStorage.setItem('reading_tracker_tags_cache', JSON.stringify(mappedTags))
+          } catch {}
+        }
+      } catch (err) {
+        if (!active) return
+        setError(err.message || 'Ошибка загрузки данных')
+        // В случае ошибки подгружаем локальный кэш
+        try {
+          const cached = localStorage.getItem('reading_tracker_books_cache')
+          if (cached && books.length === 0) setBooks(JSON.parse(cached))
+          const cachedTags = localStorage.getItem('reading_tracker_tags_cache')
+          if (cachedTags && tags.length === 0) setTags(JSON.parse(cachedTags))
+        } catch {}
+      } finally {
+        if (active) setLoading(false)
       }
-
-      setLoading(false)
     }
 
     load()
@@ -169,7 +219,6 @@ export function useBooks() {
         onConflict: 'id',
       })
       if (bookError) {
-        // Fallback if pages column is not present in schema
         delete payload.pages
         const { error: retryError } = await supabase.from('books').upsert(payload, {
           onConflict: 'id',
@@ -181,10 +230,13 @@ export function useBooks() {
 
       setBooks((current) => {
         const exists = current.some((item) => item.id === book.id)
-        if (exists) {
-          return current.map((item) => (item.id === book.id ? book : item))
-        }
-        return [{ ...book, createdAt: new Date().toISOString() }, ...current]
+        const updated = exists
+          ? current.map((item) => (item.id === book.id ? book : item))
+          : [{ ...book, createdAt: new Date().toISOString() }, ...current]
+        try {
+          localStorage.setItem('reading_tracker_books_cache', JSON.stringify(updated))
+        } catch {}
+        return updated
       })
       toast.success('Книга сохранена')
     } catch {
@@ -197,7 +249,13 @@ export function useBooks() {
       const { error: deleteError } = await supabase.from('books').delete().eq('id', id)
       if (deleteError) throw deleteError
 
-      setBooks((current) => current.filter((item) => item.id !== id))
+      setBooks((current) => {
+        const updated = current.filter((item) => item.id !== id)
+        try {
+          localStorage.setItem('reading_tracker_books_cache', JSON.stringify(updated))
+        } catch {}
+        return updated
+      })
       toast.success('Книга удалена')
     } catch {
       toast.error('Ошибка удаления')
@@ -218,11 +276,15 @@ export function useBooks() {
           .eq('id', id)
         if (updateError) throw updateError
 
-        setBooks((current) =>
-          current.map((item) =>
+        setBooks((current) => {
+          const updated = current.map((item) =>
             item.id === id ? { ...item, status: 'read', readMonth, readYear } : item,
-          ),
-        )
+          )
+          try {
+            localStorage.setItem('reading_tracker_books_cache', JSON.stringify(updated))
+          } catch {}
+          return updated
+        })
         toast.success('Отмечено прочитанным')
       } catch {
         toast.error('Не удалось обновить книгу')
