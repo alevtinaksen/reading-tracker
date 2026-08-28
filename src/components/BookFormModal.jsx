@@ -13,7 +13,6 @@ import {
   PenLine,
   Plus,
   RotateCcw,
-  Sparkles,
   Tablet,
   Trash2,
   X,
@@ -268,12 +267,12 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
     }
   }
 
-  async function handlePolishReview() {
+  async function handlePolishReview(level = 2) {
     if (!form.review || !form.review.trim() || isPolishing) return
     setIsPolishing(true)
     setRawReviewBackup(form.review)
     try {
-      const polished = await polishReviewText(form.review)
+      const polished = await polishReviewText(form.review, level)
       update('review', polished)
     } catch (err) {
       console.error('Error polishing review:', err)
@@ -696,12 +695,13 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                         <textarea
                           value={form.review}
                           onChange={(e) => update('review', e.target.value)}
-                          className={`${inputClass} pr-28 min-h-[90px] resize-y leading-relaxed ${
+                          className={`${inputClass} pr-[7.5rem] min-h-[90px] resize-y leading-relaxed ${
                             isRecording ? 'border-red-400 ring-2 ring-red-100' : ''
                           }`}
                           placeholder="Ваши впечатления или поток мыслей (можно надиктовать голосом)…"
                         />
                         <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
+                          {/* Откатить черновик */}
                           {rawReviewBackup && (
                             <button
                               type="button"
@@ -709,24 +709,37 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                               className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900 transition-all active:scale-95 cursor-pointer"
                               title="Вернуть исходный черновик"
                             >
-                              <RotateCcw size={15} strokeWidth={2} className="text-gray-900" />
+                              <RotateCcw size={15} strokeWidth={2} />
                             </button>
                           )}
+
+                          {/* 3 кнопки уровней улучшения */}
                           {form.review && form.review.trim() && (
-                            <button
-                              type="button"
-                              disabled={isPolishing}
-                              onClick={handlePolishReview}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900 transition-all active:scale-95 cursor-pointer disabled:opacity-35"
-                              title="Превратить поток мыслей в красивый литературный отзыв"
-                            >
-                              {isPolishing ? (
-                                <Loader2 size={15} strokeWidth={2} className="animate-spin text-gray-900" />
-                              ) : (
-                                <Sparkles size={15} strokeWidth={2} className="text-gray-900" />
-                              )}
-                            </button>
+                            <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5">
+                              {[
+                                { level: 1, stars: '✦', title: 'Уровень 1 — только знаки препинания' },
+                                { level: 2, stars: '✦✦', title: 'Уровень 2 — переработка предложений' },
+                                { level: 3, stars: '✦✦✦', title: 'Уровень 3 — художественный стиль' },
+                              ].map(({ level, stars, title }) => (
+                                <button
+                                  key={level}
+                                  type="button"
+                                  disabled={isPolishing}
+                                  onClick={() => handlePolishReview(level)}
+                                  title={title}
+                                  className="flex h-7 items-center justify-center rounded-md px-1.5 text-[10px] font-bold text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-35 tracking-tight select-none"
+                                >
+                                  {isPolishing ? (
+                                    <Loader2 size={10} className="animate-spin" />
+                                  ) : (
+                                    stars
+                                  )}
+                                </button>
+                              ))}
+                            </div>
                           )}
+
+                          {/* Микрофон */}
                           <button
                             type="button"
                             onClick={toggleDictation}
