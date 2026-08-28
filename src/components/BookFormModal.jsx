@@ -346,8 +346,8 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="space-y-4 px-6 py-5">
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto space-y-4 px-6 py-5 overscroll-contain">
             {/* Переключатель вкладок «По ссылке» / «Вручную» при создании */}
             {!isEdit ? (
               <div className="flex rounded-xl bg-gray-100 p-1">
@@ -474,11 +474,8 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </Field>
                 </div>
 
-                {/* 2. Ссылка на обложку */}
-                <Field
-                  label="Ссылка на обложку"
-                  hint="Укажите прямую ссылку на изображение обложки (JPG, PNG)"
-                >
+                {/* 2. Ссылка на обложку (минималистично, без подсказки) */}
+                <Field label="Ссылка на обложку">
                   <div className="relative">
                     <input
                       value={form.coverUrl}
@@ -493,7 +490,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </div>
                 </Field>
 
-                {/* 3. Статус книги: просторная сетка 2x2 */}
+                {/* 3. Статус книги: просторная сетка 2x2 с правильными отступами */}
                 <Field label="Статус книги">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {STATUS_OPTIONS.map((option) => {
@@ -513,29 +510,29 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                               update('rating', null)
                             }
                           }}
-                          className={`relative flex items-center justify-between rounded-2xl border p-4 text-left transition-all cursor-pointer ${
+                          className={`relative flex flex-col justify-between rounded-2xl border p-4 text-left transition-all cursor-pointer min-h-[88px] ${
                             active
                               ? 'border-2 border-gray-900 bg-white shadow-xs'
                               : 'border-gray-200 bg-white hover:border-gray-300'
                           }`}
                         >
-                          <div>
+                          <div className="flex w-full items-center justify-between">
                             <span
                               className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusInfo?.badge}`}
                             >
                               {option.label}
                             </span>
-                            <p className="mt-1.5 text-xs text-gray-400 font-medium">
-                              {statusInfo?.desc}
-                            </p>
+                            <div className="shrink-0">
+                              {active ? (
+                                <CheckCircle2 size={18} className="text-gray-900" />
+                              ) : (
+                                <Circle size={18} className="text-gray-300" />
+                              )}
+                            </div>
                           </div>
-                          <div className="shrink-0 ml-3">
-                            {active ? (
-                              <CheckCircle2 size={18} className="text-gray-900" />
-                            ) : (
-                              <Circle size={18} className="text-gray-300" />
-                            )}
-                          </div>
+                          <p className="mt-2 text-xs text-gray-400 font-medium">
+                            {statusInfo?.desc}
+                          </p>
                         </button>
                       )
                     })}
@@ -565,9 +562,10 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </div>
                 </Field>
 
-                {/* 5. Оценка и Месяц/Год прочтения */}
+                {/* 5. Оценка (во всю ширину) и Месяц/Год прочтения */}
                 {!isWishlist ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-4">
+                    {/* Оценка во всю ширину */}
                     <Field label="Оценка (1–10)">
                       <div className="space-y-2">
                         <RatingPicker
@@ -583,9 +581,10 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                       </div>
                     </Field>
 
+                    {/* Месяц и год прочтения */}
                     <Field label="Месяц и год прочтения">
                       <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div className="relative">
                             <select
                               value={form.readMonth ?? ''}
@@ -649,10 +648,9 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   </div>
                 ) : null}
 
-                {/* 6. Жанры и теги */}
+                {/* 6. Жанры и теги (без лишних подсказок) */}
                 <Field
                   label="Жанры и теги"
-                  hint="Выберите из существующих или введите новый тег"
                   action={
                     (mode === 'manual' || isEdit) && genreMessage ? (
                       <span className="text-[11px] font-medium text-emerald-600 animate-pulse">
@@ -672,21 +670,27 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                   />
                 </Field>
 
-                {/* 7. Количество страниц (необязательно) */}
-                <Field label="Количество страниц" hint="Необязательно">
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.pages ?? ''}
-                    onChange={(event) =>
-                      update('pages', event.target.value ? Number(event.target.value) : null)
-                    }
-                    className={inputClass}
-                    placeholder="Например: 380"
-                  />
+                {/* 7. Количество страниц (со стрелочками как у автора) */}
+                <Field label="Количество страниц">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.pages ?? ''}
+                      onChange={(event) =>
+                        update('pages', event.target.value ? Number(event.target.value) : null)
+                      }
+                      className={`${inputClass} pr-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                      placeholder="Например: 380"
+                    />
+                    <ChevronsUpDown
+                      size={15}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                  </div>
                 </Field>
 
-                {/* 8. Свернутый блок: Отзыв (с диктофоном и AI-улучшением) и цитаты */}
+                {/* 8. Свернутый блок: Отзыв и цитаты */}
                 <div className="border-t border-gray-100 pt-3">
                   <button
                     type="button"
@@ -728,48 +732,23 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                               </button>
                             ) : null}
 
-                            {/* Кнопка улучшения текста (Звёздочки / AI) */}
+                            {/* Кнопка улучшения текста (AI) */}
                             <button
                               type="button"
                               disabled={isPolishing || !form.review?.trim()}
                               onClick={handlePolishReview}
-                              title="Улучшить структуру и стиль надиктованного отзыва"
-                              className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-800 transition-all hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 cursor-pointer"
+                              title="Улучшить структуру и стиль отзыва"
+                              className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-800 transition-all hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 cursor-pointer"
                             >
                               {isPolishing ? (
                                 <>
-                                  <Loader2 size={11} className="animate-spin text-gray-700" />
+                                  <Loader2 size={12} className="animate-spin text-gray-700" />
                                   <span>Улучшаем...</span>
                                 </>
                               ) : (
                                 <>
-                                  <Sparkles size={11} className="text-gray-700" />
+                                  <Sparkles size={12} className="text-gray-700" />
                                   <span>Улучшить</span>
-                                </>
-                              )}
-                            </button>
-
-                            {/* Кнопка диктофона (Наговорить / Запись) */}
-                            <button
-                              type="button"
-                              onClick={toggleRecording}
-                              title={isRecording ? 'Остановить запись' : 'Наговорить отзыв голосом'}
-                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all active:scale-95 cursor-pointer ${
-                                isRecording
-                                  ? 'bg-red-500 text-white shadow-xs animate-pulse'
-                                  : 'bg-gray-900 text-white hover:bg-gray-800'
-                              }`}
-                            >
-                              {isRecording ? (
-                                <>
-                                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
-                                  <MicOff size={11} />
-                                  <span>Стоп</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Mic size={11} />
-                                  <span>Диктофон</span>
                                 </>
                               )}
                             </button>
@@ -781,23 +760,33 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                             value={form.review}
                             onChange={(event) => update('review', event.target.value)}
                             rows={3}
-                            className={`${inputClass} resize-y text-xs transition-all ${
+                            className={`${inputClass} resize-y text-xs pr-11 transition-all ${
                               isRecording ? 'border-red-400 ring-2 ring-red-100' : ''
                             }`}
                             placeholder={
                               isRecording
-                                ? 'Говорите... Мы записываем ваш отзыв в реальном времени'
-                                : 'Наговорите поток мыслей через диктофон или напишите вручную...'
+                                ? 'Говорите... Идёт запись голоса в реальном времени'
+                                : 'Наговорите отзыв голосом или напишите вручную...'
                             }
                           />
 
-                          {/* Индикатор активной записи в реальном времени */}
-                          {isRecording ? (
-                            <div className="pointer-events-none absolute right-2.5 bottom-2.5 flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-600 border border-red-200/70">
-                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                              <span>Идёт запись</span>
-                            </div>
-                          ) : null}
+                          {/* Кнопка диктофона внутри поля (только иконка) */}
+                          <button
+                            type="button"
+                            onClick={toggleRecording}
+                            title={isRecording ? 'Остановить запись' : 'Надиктовать отзыв голосом'}
+                            className={`absolute top-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-lg transition-all active:scale-95 cursor-pointer ${
+                              isRecording
+                                ? 'bg-red-500 text-white shadow-xs animate-pulse'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                            }`}
+                          >
+                            {isRecording ? (
+                              <MicOff size={13} />
+                            ) : (
+                              <Mic size={13} />
+                            )}
+                          </button>
                         </div>
                       </Field>
 
@@ -823,7 +812,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
             ) : null}
           </div>
 
-          <footer className="flex items-center justify-between border-t border-gray-100 px-6 py-4">
+          <footer className="flex shrink-0 items-center justify-between border-t border-gray-100 px-6 py-4 bg-white">
             {isEdit ? (
               <button
                 type="button"

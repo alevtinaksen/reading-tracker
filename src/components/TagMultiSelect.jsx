@@ -93,10 +93,9 @@ export function TagMultiSelect({
                 onChange([])
               }}
               title="Очистить все теги"
-              className="inline-flex h-7 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-semibold text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 active:scale-95"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 active:scale-95 cursor-pointer"
             >
-              <X size={12} strokeWidth={2.5} />
-              <span>Сбросить</span>
+              <X size={14} strokeWidth={2} />
             </button>
           ) : null}
 
@@ -106,14 +105,13 @@ export function TagMultiSelect({
               disabled={isDetecting || !canAutoDetect}
               onClick={onAutoDetect}
               title={canAutoDetect ? 'Автоматически определить жанры' : 'Сначала введите название книги'}
-              className="inline-flex h-7 items-center justify-center gap-1 rounded-lg bg-gray-100 px-2 text-xs font-semibold text-gray-700 transition-all hover:bg-gray-200 hover:text-gray-900 disabled:opacity-35 disabled:cursor-not-allowed active:scale-95 shrink-0"
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-700 transition-all hover:bg-gray-200 hover:text-gray-900 disabled:opacity-35 disabled:cursor-not-allowed active:scale-95 shrink-0 cursor-pointer"
             >
               {isDetecting ? (
-                <Loader2 size={13} className="animate-spin text-gray-900" />
+                <Loader2 size={14} className="animate-spin text-gray-900" />
               ) : (
-                <Sparkles size={13} className="text-gray-900" />
+                <Sparkles size={14} className="text-gray-900" />
               )}
-              <span className="text-[11px]">Авто</span>
             </button>
           ) : null}
         </div>
