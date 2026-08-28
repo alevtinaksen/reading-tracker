@@ -130,9 +130,13 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
       setIsDownloading(true)
       const dataUrl = await toPng(posterRef.current, {
         cacheBust: false,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
+        pixelRatio: 3,
+        backgroundColor: '#F9FAFB',
         skipFonts: true,
+        style: {
+          margin: '0',
+          transform: 'none',
+        },
       })
 
       if (dataUrl) {
@@ -147,9 +151,13 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
       console.warn('Export retry fallback:', err)
       try {
         const dataUrl = await toPng(posterRef.current, {
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
+          pixelRatio: 3,
+          backgroundColor: '#F9FAFB',
           skipFonts: true,
+          style: {
+            margin: '0',
+            transform: 'none',
+          },
           filter: (node) => node.tagName !== 'IMG' || node.src?.startsWith('data:'),
         })
         if (dataUrl) {
@@ -224,7 +232,7 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
 
         {/* Инфографический постер итогов года */}
         <div className="overflow-y-auto p-6 sm:p-7 space-y-4">
-          <div ref={posterRef} className="rounded-[28px] bg-[#F9FAFB] p-5 sm:p-6">
+          <div ref={posterRef} className="rounded-[28px] bg-[#F9FAFB] p-5 sm:p-6 overflow-hidden">
             {/* Шапка карточки */}
             <div className="flex items-center justify-between pb-2">
               <div>
@@ -317,10 +325,10 @@ export function YearInReviewModal({ books, defaultYear, onClose }) {
                   <img
                     src={coverBase64 || bestBook.coverUrl}
                     alt={bestBook.title}
-                    className="w-18 sm:w-20 aspect-[2/3] shrink-0 rounded-xl object-cover shadow-2xs bg-gray-100"
+                    className="w-[72px] sm:w-[80px] h-[108px] sm:h-[120px] shrink-0 rounded-xl object-cover shadow-2xs bg-gray-100"
                   />
                 ) : (
-                  <div className="w-18 sm:w-20 aspect-[2/3] shrink-0 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                  <div className="w-[72px] sm:w-[80px] h-[108px] sm:h-[120px] shrink-0 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
                     <BookOpen size={24} />
                   </div>
                 )}

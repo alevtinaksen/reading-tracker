@@ -291,15 +291,17 @@ export function Dashboard({ books }) {
             })}
           </div>
 
-          {/* Кнопка Итоги года в строгом статичном черном стиле */}
-          <button
-            type="button"
-            onClick={() => setYearInReviewOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-xs font-bold text-white shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all hover:bg-gray-800 hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] active:scale-95 cursor-pointer"
-          >
-            <Sparkles size={14} className="text-white" />
-            <span>Итоги года</span>
-          </button>
+          {/* Кнопка Итоги года в строгом статичном черном стиле (только для конкретного выбранного года) */}
+          {!isAllYears && (
+            <button
+              type="button"
+              onClick={() => setYearInReviewOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-xs font-bold text-white shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all hover:bg-gray-800 hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] active:scale-95 cursor-pointer"
+            >
+              <Sparkles size={14} className="text-white" />
+              <span>Итоги года</span>
+            </button>
+          )}
         </div>
       </header>
 
