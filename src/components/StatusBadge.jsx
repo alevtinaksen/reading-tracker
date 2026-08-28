@@ -1,9 +1,10 @@
 import { STATUS } from '../constants'
 
 const STYLES = {
-  [STATUS.read]: 'bg-lime-400 text-lime-950',
-  [STATUS.reading]: 'bg-violet-300 text-violet-950',
-  [STATUS.abandoned]: 'bg-orange-300 text-orange-950',
+  [STATUS.wantToRead]: 'bg-[#F3E8FF] text-[#7C3AED]',
+  [STATUS.reading]: 'bg-[#E0F2FE] text-[#0369A1]',
+  [STATUS.read]: 'bg-[#DCFFDF] text-[#15803D]',
+  [STATUS.abandoned]: 'bg-[#FFE5E5] text-[#D32F2F]',
 }
 
 export function StatusBadge({ status, label }) {

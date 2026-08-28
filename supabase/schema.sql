@@ -21,8 +21,8 @@ create table if not exists public.books (
   title      text not null,
   author_id  uuid not null references public.authors (id) on delete restrict,
   cover_url  text,
-  rating     smallint not null default 7 check (rating between 1 and 10),
-  status     text not null default 'read' check (status in ('read', 'reading', 'abandoned')),
+  rating     smallint check (rating between 1 and 10),
+  status     text not null default 'read' check (status in ('read', 'reading', 'abandoned', 'want_to_read')),
   format     text not null default 'paper' check (format in ('paper', 'audio', 'ebook')),
   read_month smallint check (read_month between 1 and 12),
   read_year  smallint,
@@ -79,9 +79,9 @@ create policy book_tags_public_all on public.book_tags for all using (true) with
 -- ---------- Опционально: стартовые теги из приложения ----------
 
 insert into public.tags (name) values
-  ('Триллер'),
   ('Детектив'),
-  ('Скандинавский нуар'),
-  ('Криминал'),
-  ('Шпионский')
+  ('Триллер'),
+  ('Криминальная проза'),
+  ('Профлитература'),
+  ('Классика')
 on conflict (name) do nothing;

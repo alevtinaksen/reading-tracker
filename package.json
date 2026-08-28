@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backup": "node scripts/backup.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
     "lucide-react": "^1.34.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

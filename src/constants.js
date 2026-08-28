@@ -1,14 +1,14 @@
-export const STORAGE_KEY = 'reading-tracker:books:v3'
-
 export const STATUS = {
-  read: 'read',
+  wantToRead: 'want_to_read',
   reading: 'reading',
+  read: 'read',
   abandoned: 'abandoned',
 }
 
 export const STATUS_OPTIONS = [
-  { value: STATUS.read, label: 'Прочитано' },
+  { value: STATUS.wantToRead, label: 'Хочу прочитать' },
   { value: STATUS.reading, label: 'В процессе' },
+  { value: STATUS.read, label: 'Прочитано' },
   { value: STATUS.abandoned, label: 'Брошено' },
 ]
 
@@ -25,11 +25,19 @@ export const FORMAT_OPTIONS = [
 ]
 
 export const TAG_OPTIONS = [
-  'Триллер',
   'Детектив',
-  'Скандинавский нуар',
-  'Криминал',
-  'Шпионский',
+  'Триллер',
+  'Криминальная проза',
+  'Профлитература',
+  'Классика',
+]
+
+export const SORT_OPTIONS = [
+  { value: 'newest', label: 'Сначала новые' },
+  { value: 'oldest', label: 'Сначала старые' },
+  { value: 'author', label: 'По автору (А–Я)' },
+  { value: 'title', label: 'По названию (А–Я)' },
+  { value: 'rating', label: 'По высшей оценке' },
 ]
 
 export const MONTHS = [
@@ -57,6 +65,7 @@ export const EMPTY_BOOK = {
   status: STATUS.read,
   format: FORMAT.paper,
   tags: [],
+  pages: null,
   readMonth: new Date().getMonth() + 1,
   readYear: new Date().getFullYear(),
   review: '',

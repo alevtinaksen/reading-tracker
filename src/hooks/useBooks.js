@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '../lib/supabase'
 
 const BOOK_SELECT = `
@@ -8,10 +9,12 @@ const BOOK_SELECT = `
   rating,
   status,
   format,
+  pages,
   read_month,
   read_year,
   review,
   quotes,
+  created_at,
   authors ( id, name ),
   book_tags ( tags ( id, name ) )
 `
@@ -25,16 +28,19 @@ function mapBook(row) {
     rating: row.rating,
     status: row.status,
     format: row.format,
+    pages: row.pages ?? null,
     tags: (row.book_tags ?? []).map((link) => link.tags?.name).filter(Boolean),
     readMonth: row.read_month,
     readYear: row.read_year,
     review: row.review ?? '',
     quotes: row.quotes ?? '',
+    createdAt: row.created_at ?? null,
   }
 }
 
 async function upsertAuthor(name) {
-  const trimmed = name.trim()
+  const trimmed = (name || '').trim()
+  if (!trimmed) return null
 
   const { data: existing } = await supabase
     .from('authors')
@@ -89,6 +95,7 @@ async function syncBookTags(bookId, tags) {
 
 export function useBooks() {
   const [books, setBooks] = useState([])
+  const [tags, setTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -98,18 +105,35 @@ export function useBooks() {
     async function load() {
       setLoading(true)
       setError('')
-      const { data, error: fetchError } = await supabase
-        .from('books')
-        .select(BOOK_SELECT)
-        .order('created_at', { ascending: false })
+      const [booksResult, tagsResult] = await Promise.all([
+        supabase.from('books').select(BOOK_SELECT).order('created_at', { ascending: false }),
+        supabase.from('tags').select('name').order('name'),
+      ])
 
       if (!active) return
 
-      if (fetchError) {
-        setError(fetchError.message)
+      if (booksResult.error) {
+        // Fallback without pages column if Supabase table does not yet have pages column
+        const fallbackResult = await supabase
+          .from('books')
+          .select(
+            `id, title, cover_url, rating, status, format, read_month, read_year, review, quotes, created_at, authors ( id, name ), book_tags ( tags ( id, name ) )`,
+          )
+          .order('created_at', { ascending: false })
+
+        if (fallbackResult.error) {
+          setError(fallbackResult.error.message)
+        } else {
+          setBooks((fallbackResult.data ?? []).map(mapBook))
+        }
       } else {
-        setBooks((data ?? []).map(mapBook))
+        setBooks((booksResult.data ?? []).map(mapBook))
       }
+
+      if (tagsResult.data) {
+        setTags((tagsResult.data ?? []).map((tag) => tag.name))
+      }
+
       setLoading(false)
     }
 
@@ -121,56 +145,67 @@ export function useBooks() {
   }, [])
 
   const upsertBook = useCallback(async (book) => {
-    setError('')
     try {
       const authorId = await upsertAuthor(book.author)
 
-      const { error: bookError } = await supabase.from('books').upsert(
-        {
-          id: book.id,
-          title: book.title,
-          author_id: authorId,
-          cover_url: book.coverUrl || null,
-          rating: book.rating,
-          status: book.status,
-          format: book.format,
-          read_month: book.readMonth ?? null,
-          read_year: book.readYear ?? null,
-          review: book.review || null,
-          quotes: book.quotes || null,
-        },
-        { onConflict: 'id' },
-      )
-      if (bookError) throw bookError
+      const payload = {
+        id: book.id,
+        title: book.title,
+        author_id: authorId,
+        cover_url: book.coverUrl || null,
+        rating: book.rating,
+        status: book.status,
+        format: book.format,
+        read_month: book.readMonth ?? null,
+        read_year: book.readYear ?? null,
+        review: book.review || null,
+        quotes: book.quotes || null,
+      }
+      if (book.pages != null) {
+        payload.pages = book.pages
+      }
+
+      const { error: bookError } = await supabase.from('books').upsert(payload, {
+        onConflict: 'id',
+      })
+      if (bookError) {
+        // Fallback if pages column is not present in schema
+        delete payload.pages
+        const { error: retryError } = await supabase.from('books').upsert(payload, {
+          onConflict: 'id',
+        })
+        if (retryError) throw retryError
+      }
 
       await syncBookTags(book.id, book.tags ?? [])
 
       setBooks((current) => {
         const exists = current.some((item) => item.id === book.id)
-        return exists
-          ? current.map((item) => (item.id === book.id ? book : item))
-          : [book, ...current]
+        if (exists) {
+          return current.map((item) => (item.id === book.id ? book : item))
+        }
+        return [{ ...book, createdAt: new Date().toISOString() }, ...current]
       })
-    } catch (err) {
-      setError(err.message ?? 'Не удалось сохранить книгу')
+      toast.success('Книга сохранена')
+    } catch {
+      toast.error('Ошибка сохранения')
     }
   }, [])
 
   const removeBook = useCallback(async (id) => {
-    setError('')
     try {
       const { error: deleteError } = await supabase.from('books').delete().eq('id', id)
       if (deleteError) throw deleteError
 
       setBooks((current) => current.filter((item) => item.id !== id))
-    } catch (err) {
-      setError(err.message ?? 'Не удалось удалить книгу')
+      toast.success('Книга удалена')
+    } catch {
+      toast.error('Ошибка удаления')
     }
   }, [])
 
   const markAsRead = useCallback(
     async (id) => {
-      setError('')
       try {
         const book = books.find((item) => item.id === id)
         const now = new Date()
@@ -188,12 +223,27 @@ export function useBooks() {
             item.id === id ? { ...item, status: 'read', readMonth, readYear } : item,
           ),
         )
-      } catch (err) {
-        setError(err.message ?? 'Не удалось обновить книгу')
+        toast.success('Отмечено прочитанным')
+      } catch {
+        toast.error('Не удалось обновить книгу')
       }
     },
     [books],
   )
 
-  return { books, loading, error, upsertBook, removeBook, markAsRead }
+  const importBooks = useCallback(
+    async (importedList) => {
+      try {
+        for (const book of importedList) {
+          await upsertBook(book)
+        }
+        toast.success(`Успешно загружено книг: ${importedList.length}`)
+      } catch {
+        toast.error('Не удалось импортировать все книги')
+      }
+    },
+    [upsertBook],
+  )
+
+  return { books, tags, loading, error, upsertBook, removeBook, markAsRead, importBooks }
 }
