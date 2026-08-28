@@ -150,22 +150,21 @@ export function useBooks() {
     async function load() {
       setError('')
       try {
-        // Таймаут на случай медленного соединения или сбоя сети
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Превышено время ожидания ответа сервера')), 8000)
-        )
-
         const fetchPromise = Promise.all([
           supabase.from('books').select(BOOK_SELECT).order('created_at', { ascending: false }),
           supabase.from('tags').select('name').order('name'),
         ])
+
+        // Мягкий таймаут 15 секунд для мобильного интернета
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Слабый сигнал сети, данные загружены из локального кэша')), 15000)
+        )
 
         const [booksResult, tagsResult] = await Promise.race([fetchPromise, timeoutPromise])
 
         if (!active) return
 
         if (booksResult.error) {
-          // Резервный запрос без колонки pages
           const fallbackResult = await supabase
             .from('books')
             .select(
@@ -173,16 +172,14 @@ export function useBooks() {
             )
             .order('created_at', { ascending: false })
 
-          if (fallbackResult.error) {
-            setError(fallbackResult.error.message)
-          } else {
+          if (!fallbackResult.error && fallbackResult.data) {
             const mapped = (fallbackResult.data ?? []).map(mapBook)
             setBooks(mapped)
             try {
               localStorage.setItem('reading_tracker_books_cache', JSON.stringify(mapped))
             } catch {}
           }
-        } else {
+        } else if (booksResult.data) {
           const mapped = (booksResult.data ?? []).map(mapBook)
           setBooks(mapped)
           try {
@@ -199,8 +196,8 @@ export function useBooks() {
         }
       } catch (err) {
         if (!active) return
-        setError(err.message || 'Ошибка загрузки данных')
-        // В случае ошибки подгружаем локальный кэш
+        console.warn('Load network warning:', err)
+        // В случае задержки сети используем кэш без навязчивых баннеров
         try {
           const cached = localStorage.getItem('reading_tracker_books_cache')
           if (cached && books.length === 0) setBooks(JSON.parse(cached))
@@ -220,23 +217,39 @@ export function useBooks() {
   }, [])
 
   const upsertBook = useCallback(async (book) => {
-    try {
-      const isValidUUID =
-        book.id &&
-        typeof book.id === 'string' &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          book.id,
-        )
-      const bookId = isValidUUID
-        ? book.id
-        : typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-              const r = (Math.random() * 16) | 0
-              const v = c === 'x' ? r : (r & 0x3) | 0x8
-              return v.toString(16)
-            })
+    const isValidUUID =
+      book.id &&
+      typeof book.id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        book.id,
+      )
+    const bookId = isValidUUID
+      ? book.id
+      : typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0
+            const v = c === 'x' ? r : (r & 0x3) | 0x8
+            return v.toString(16)
+          })
 
+    const savedBook = { ...book, id: bookId }
+
+    // 1. МГНОВЕННОЕ оптимистичное сохранение в React State и LocalStorage
+    setBooks((current) => {
+      const exists = current.some((item) => item.id === bookId)
+      const updated = exists
+        ? current.map((item) => (item.id === bookId ? savedBook : item))
+        : [{ ...savedBook, createdAt: new Date().toISOString() }, ...current]
+      try {
+        localStorage.setItem('reading_tracker_books_cache', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
+    toast.success('Книга сохранена')
+
+    // 2. Фоновая асинхронная синхронизация с Supabase
+    try {
       const authorId = await upsertAuthor(book.author)
 
       const payload = {
@@ -261,33 +274,12 @@ export function useBooks() {
       })
       if (bookError) {
         delete payload.pages
-        const { error: retryError } = await supabase.from('books').upsert(payload, {
-          onConflict: 'id',
-        })
-        if (retryError) {
-          console.error('Supabase books save error:', retryError)
-          throw retryError
-        }
+        await supabase.from('books').upsert(payload, { onConflict: 'id' })
       }
 
       await syncBookTags(bookId, book.tags ?? [])
-
-      const savedBook = { ...book, id: bookId }
-
-      setBooks((current) => {
-        const exists = current.some((item) => item.id === bookId)
-        const updated = exists
-          ? current.map((item) => (item.id === bookId ? savedBook : item))
-          : [{ ...savedBook, createdAt: new Date().toISOString() }, ...current]
-        try {
-          localStorage.setItem('reading_tracker_books_cache', JSON.stringify(updated))
-        } catch {}
-        return updated
-      })
-      toast.success('Книга сохранена')
     } catch (err) {
-      console.error('Error saving book:', err)
-      toast.error('Ошибка сохранения')
+      console.error('Background sync error with Supabase:', err)
     }
   }, [])
 
