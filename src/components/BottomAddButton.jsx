@@ -40,7 +40,7 @@ export function BottomAddButton({ onAdd, onQuickAdd }) {
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-8 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center"
+      className="hidden lg:flex fixed bottom-8 left-1/2 z-50 flex-col items-center -translate-x-1/2"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

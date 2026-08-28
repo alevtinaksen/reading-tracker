@@ -50,10 +50,10 @@ export function BookCard({
   return (
     <article
       onClick={handleCardClick}
-      className="group relative flex h-[364px] w-full cursor-pointer flex-col justify-between rounded-[25px] bg-white p-[20px] text-[14px] font-normal leading-normal text-[#000] shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300 ease-out hover:shadow-[0_16px_48px_rgba(0,0,0,0.08)] select-none"
+      className="group relative flex w-full cursor-pointer flex-row sm:flex-col justify-between items-center sm:items-stretch rounded-[22px] sm:rounded-[25px] bg-white p-3.5 sm:p-[20px] text-[14px] font-normal leading-normal text-[#000] shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300 ease-out hover:shadow-[0_16px_48px_rgba(0,0,0,0.08)] select-none sm:h-[364px] gap-3.5 sm:gap-0"
     >
-      {/* Меню действий с отступами 12px сверху и справа */}
-      <div ref={menuRef} className="absolute top-3 right-3 z-10">
+      {/* Меню действий */}
+      <div ref={menuRef} className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 z-10">
         <button
           type="button"
           aria-label="Действия"
@@ -118,10 +118,10 @@ export function BookCard({
                             onToggleMenu(null)
                             if (onQuickRate) onQuickRate(book.id, num)
                           }}
-                          className={`flex h-7 items-center justify-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`flex h-6 items-center justify-center rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-gray-900 text-white shadow-xs scale-105'
-                              : 'bg-white text-gray-700 hover:bg-gray-900 hover:text-white border border-gray-200/70 active:scale-95'
+                              ? 'bg-gray-900 text-white shadow-xs'
+                              : 'bg-white text-gray-700 hover:bg-gray-200'
                           }`}
                         >
                           {num}
@@ -132,7 +132,7 @@ export function BookCard({
                 </div>
               )}
 
-              {book.status !== STATUS.read ? (
+              {book.status !== STATUS.read && (
                 <MenuItem
                   icon={Check}
                   onClick={() => {
@@ -140,9 +140,9 @@ export function BookCard({
                     onMarkRead(book.id)
                   }}
                 >
-                  Отметить прочитанным
+                  Отметить прочитанной
                 </MenuItem>
-              ) : null}
+              )}
 
               <MenuItem
                 icon={Trash2}
@@ -152,33 +152,90 @@ export function BookCard({
                   onDelete(book.id)
                 }}
               >
-                Удалить
+                Удалить книгу
               </MenuItem>
             </div>
           </div>
         ) : null}
       </div>
 
-      {/* Заголовок и автор */}
-      <div className="w-full max-w-[210px] pr-4 text-left">
-        <h3
-          style={{ lineHeight: '110%' }}
-          className="line-clamp-2 font-semibold text-gray-900"
-        >
+      {/* --- МОБИЛЬНЫЙ ВИД (SM:HIDDEN) --- */}
+      {/* 1. Обложка слева без тяжелой тени */}
+      <div className="sm:hidden relative w-[80px] h-[116px] shrink-0 overflow-hidden rounded-[16px] bg-gray-100">
+        {showCover ? (
+          <img
+            src={book.coverUrl}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={() => setCoverFailed(true)}
+          />
+        ) : (
+          <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-300">
+            <span className="text-xl font-bold">📖</span>
+          </div>
+        )}
+      </div>
+
+      {/* 2. Текстовая информация справа */}
+      <div className="sm:hidden min-w-0 flex-1 flex flex-col justify-between self-stretch pr-6">
+        <div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span
+              className={`inline-flex items-center rounded-[20px] px-2 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+            >
+              {statusLabel(book.status)}
+            </span>
+            {hasRating ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-bold text-white">
+                <Star size={9} className="fill-white text-white" />
+                <span>{book.rating}</span>
+              </span>
+            ) : null}
+          </div>
+
+          <h4 className="mt-1 font-extrabold text-[15px] leading-snug text-gray-900 line-clamp-2">
+            {book.title}
+          </h4>
+          <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
+            {book.author || 'Автор не указан'}
+          </p>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {book.pages ? (
+            <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+              {book.pages} стр.
+            </span>
+          ) : null}
+          {book.tags?.slice(0, 1).map((tag) => (
+            <span
+              key={tag}
+              className="rounded-md bg-[#F6F6F6] px-2 py-0.5 text-[10px] font-semibold text-gray-700 truncate max-w-[110px]"
+            >
+              {tag.replace(/^#/, '')}
+            </span>
+          ))}
+          {period ? (
+            <span className="text-[11px] font-medium text-gray-400 ml-auto">
+              {period}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* --- ДЕСКТОПНЫЙ ВИД (HIDDEN SM:FLEX) --- */}
+      {/* Верхняя часть: Название и автор */}
+      <div className="hidden sm:flex flex-col items-start pr-6">
+        <h3 className="w-full truncate text-[16px] font-bold leading-tight text-gray-900">
           {book.title}
         </h3>
-        {book.author ? (
-          <p
-            style={{ lineHeight: '100%' }}
-            className="mt-1 truncate text-gray-400"
-          >
-            {book.author}
-          </p>
-        ) : null}
+        <p className="mt-1 w-full truncate text-[14px] font-medium text-gray-400">
+          {book.author || 'Автор не указан'}
+        </p>
       </div>
 
       {/* Обложка с эффектом блюра и оценкой по центру при ховере */}
-      <div className="my-auto flex justify-center py-1">
+      <div className="hidden sm:flex my-auto justify-center py-1">
         <div className="relative h-[160px] w-[112px] overflow-hidden rounded-[15px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.15)]">
           {showCover ? (
             <img
@@ -208,8 +265,8 @@ export function BookCard({
         </div>
       </div>
 
-      {/* Нижняя часть карточки */}
-      <div className="flex items-end justify-between gap-2">
+      {/* Нижняя часть карточки на десктопе */}
+      <div className="hidden sm:flex items-end justify-between gap-2">
         <div className="flex min-w-0 max-w-[170px] flex-col items-start gap-1.5">
           <span
             className={`inline-flex items-center rounded-[20px] px-2.5 py-1 text-[12px] font-medium leading-none ${getStatusStyle(book.status)}`}
@@ -223,7 +280,7 @@ export function BookCard({
                   key={tag}
                   className="inline-flex items-center justify-center rounded-[20px] bg-[#F6F6F6] px-2.5 py-1 text-[12px] font-medium leading-none text-gray-800"
                 >
-                  {tag}
+                  {tag.replace(/^#/, '')}
                 </span>
               ))}
               {book.tags.length > 2 ? (
@@ -235,7 +292,7 @@ export function BookCard({
           ) : null}
         </div>
 
-        {/* Дата прочтения с отступами по 24px от правого нижнего угла */}
+        {/* Дата прочтения */}
         {period ? (
           <span className="absolute right-6 bottom-6 text-[12px] font-medium leading-none text-gray-400">
             {period}

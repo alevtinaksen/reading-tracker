@@ -10,9 +10,10 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react'
-import { SORT_OPTIONS, STATUS_OPTIONS } from '../constants'
+import { FORMAT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS } from '../constants'
 import { BackupModal } from './BackupModal'
 import { BookCard } from './BookCard'
+import { MobileBottomDock } from './MobileBottomDock'
 
 const COLLATOR = new Intl.Collator('ru')
 
@@ -63,6 +64,8 @@ export function Library({
   onDelete,
   onAdd,
   onImportBooks,
+  page = 'library',
+  onNavigate,
 }) {
   const [menuId, setMenuId] = useState(null)
   const [sortBy, setSortBy] = useState('newest')
@@ -184,13 +187,13 @@ export function Library({
   return (
     <div>
       <header className="relative z-40">
-        {/* Заголовок Библиотека: 120px сверху, 80px снизу */}
-        <h1 className="pt-[90px] pb-[50px] md:pt-[120px] md:pb-[80px] text-center text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-[64px]">
+        {/* Заголовок Библиотека: компактный на мобильных, с отступами на десктопе */}
+        <h1 className="pt-4 pb-3 md:pt-[120px] md:pb-[80px] text-center text-4xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-[64px]">
           Библиотека
         </h1>
 
-        {/* Единая контрольная строка (Frame 45): Плашки статусов слева + Поиск и 3 круглые иконки справа */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 md:gap-4">
+        {/* Единая контрольная строка (Frame 45): Только на десктопе (lg:flex), на мобильных вынесена в нижний док */}
+        <div className="hidden lg:flex flex-row items-center justify-between gap-4">
           {/* Левая часть: плашки статусов с достаточным вертикальным клиренсом для теней ховера */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 -my-3.5 px-1 -mx-1">
             <FilterChip
@@ -461,7 +464,7 @@ export function Library({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-1 md:grid-cols-3 xl:grid-cols-4">
+          <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 sm:gap-1">
             {visible.map((book) => (
               <BookCard
                 key={book.id}
@@ -477,6 +480,30 @@ export function Library({
           </div>
         )}
       </div>
+
+      {/* Мобильный нижний док со статусами, кнопкой (+) и настройками */}
+      <MobileBottomDock
+        page={page}
+        onNavigate={onNavigate}
+        statusFilter={statusFilter}
+        onStatusFilter={onStatusFilter}
+        counts={counts}
+        onAdd={onAdd}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedGenre={selectedGenre}
+        setSelectedGenre={setSelectedGenre}
+        availableGenres={availableGenres}
+        selectedRating={selectedRating}
+        setSelectedRating={setSelectedRating}
+        selectedFormat={selectedFormat}
+        setSelectedFormat={setSelectedFormat}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        resetExtraFilters={resetExtraFilters}
+        hasActiveExtraFilters={hasActiveExtraFilters}
+        onOpenBackup={() => setBackupOpen(true)}
+      />
 
       {/* Модальное окно резервного копирования и экспорта */}
       {backupOpen ? (

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { FORMAT, FORMAT_OPTIONS, MONTHS, STATUS } from '../constants'
 import { YearInReviewModal } from './YearInReviewModal'
+import { MobileBottomDock } from './MobileBottomDock'
 
 // Цель чтения на год — 36 книг
 const READING_GOAL = 36
@@ -34,7 +35,7 @@ function getRatingShade(rating) {
   return { text: 'text-gray-400', bar: 'bg-gray-400', star: 'fill-gray-400 text-gray-400' }
 }
 
-export function Dashboard({ books }) {
+export function Dashboard({ books, page = 'dashboard', onNavigate }) {
   const now = useMemo(() => new Date(), [])
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
@@ -252,9 +253,9 @@ export function Dashboard({ books }) {
 
   return (
     <div>
-      {/* Заголовок Дашборд с отступами */}
+      {/* Заголовок Дашборд: компактный на мобильных, с отступами на десктопе */}
       <header className="relative z-40">
-        <h1 className="pt-[120px] pb-[80px] text-center text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-[64px]">
+        <h1 className="pt-4 pb-3 md:pt-[120px] md:pb-[80px] text-center text-4xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-[64px]">
           Дашборд
         </h1>
 
@@ -555,6 +556,16 @@ export function Dashboard({ books }) {
           onClose={() => setYearInReviewOpen(false)}
         />
       ) : null}
+
+      {/* Мобильный нижний док */}
+      <MobileBottomDock
+        page={page}
+        onNavigate={onNavigate}
+        statusFilter="all"
+        onStatusFilter={() => onNavigate && onNavigate('library')}
+        counts={{ all: books.length }}
+        onAdd={() => onNavigate && onNavigate('library')}
+      />
     </div>
   )
 }

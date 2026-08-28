@@ -145,7 +145,7 @@ function App() {
               </p>
             ) : null}
             {page === 'dashboard' ? (
-              <Dashboard books={books} />
+              <Dashboard books={books} page={page} onNavigate={handleNavigate} />
             ) : (
               <Library
                 books={books}
@@ -157,6 +157,8 @@ function App() {
                 onDelete={requestDelete}
                 onAdd={openCreate}
                 onImportBooks={importBooks}
+                page={page}
+                onNavigate={handleNavigate}
               />
             )}
           </>
