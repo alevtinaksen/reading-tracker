@@ -77,34 +77,34 @@ export function MobileBottomDock({
         aria-label="Мобильная панель управления"
         className="fixed bottom-4 left-3 right-3 z-40 lg:hidden flex items-center justify-between gap-2 rounded-full border border-gray-100/90 bg-white/95 p-1.5 shadow-[0_16px_45px_rgba(0,0,0,0.15)] backdrop-blur-md"
       >
-        {/* Переключатель страниц: иконка + текст у активного, только иконка у неактивного */}
+        {/* Переключатель страниц: только иконки */}
         <div className="flex items-center rounded-full bg-gray-100 p-1 shrink-0">
           <button
             type="button"
             onClick={() => onNavigate('library')}
-            className={`flex h-10 items-center justify-center rounded-full transition-all cursor-pointer ${
+            className={`flex h-10 w-10 items-center justify-center rounded-full transition-all cursor-pointer ${
               page === 'library'
-                ? 'bg-gray-900 text-white shadow-xs px-3.5 gap-1.5 text-xs font-bold'
-                : 'w-10 text-gray-500 hover:text-gray-900'
+                ? 'bg-gray-900 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
             }`}
             title="Библиотека"
+            aria-label="Библиотека"
           >
-            <BookOpen size={16} strokeWidth={2.2} />
-            {page === 'library' && <span>Библиотека</span>}
+            <BookOpen size={18} strokeWidth={2.2} />
           </button>
 
           <button
             type="button"
             onClick={() => onNavigate('dashboard')}
-            className={`flex h-10 items-center justify-center rounded-full transition-all cursor-pointer ${
+            className={`flex h-10 w-10 items-center justify-center rounded-full transition-all cursor-pointer ${
               page === 'dashboard'
-                ? 'bg-gray-900 text-white shadow-xs px-3.5 gap-1.5 text-xs font-bold'
-                : 'w-10 text-gray-500 hover:text-gray-900'
+                ? 'bg-gray-900 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
             }`}
             title="Дашборд"
+            aria-label="Дашборд"
           >
-            <LayoutDashboard size={16} strokeWidth={2.2} />
-            {page === 'dashboard' && <span>Дашборд</span>}
+            <LayoutDashboard size={18} strokeWidth={2.2} />
           </button>
         </div>
 

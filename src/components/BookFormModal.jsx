@@ -98,7 +98,12 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
   }, [book])
 
   useEffect(() => {
-    return () => { if (recognitionRef.current) try { recognitionRef.current.stop() } catch {} }
+    const origOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = origOverflow
+      if (recognitionRef.current) try { recognitionRef.current.stop() } catch {}
+    }
   }, [])
 
   function checkIsDirty() {
@@ -284,9 +289,17 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
   const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:border-gray-900 focus:ring-1 focus:ring-gray-900'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto bg-black/50 p-0 sm:p-4 backdrop-blur-xs transition-opacity duration-200" onPointerDown={(event) => { if (event.target === event.currentTarget) handleAttemptClose() }}>
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-xl flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-[28px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] max-h-[92vh] sm:max-h-[88vh] animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-200">
-        
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-xs overflow-hidden transition-opacity duration-200"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) handleAttemptClose()
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full max-w-xl flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-[28px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] max-h-[85dvh] sm:max-h-[88vh] animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-200"
+      >
         {showConfirmClose && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
             <div className="w-full max-w-sm rounded-[28px] bg-white p-7 shadow-[0_24px_70px_rgba(0,0,0,0.20)] border border-gray-100 text-center">
@@ -300,7 +313,10 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
               <div className="mt-6 space-y-2.5">
                 <button
                   type="button"
-                  onClick={(e) => { setShowConfirmClose(false); handleSubmit(e) }}
+                  onClick={(e) => {
+                    setShowConfirmClose(false)
+                    handleSubmit(e)
+                  }}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3.5 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 cursor-pointer shadow-xs"
                 >
                   <Check size={14} strokeWidth={2.5} />
@@ -308,7 +324,10 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowConfirmClose(false); onClose() }}
+                  onClick={() => {
+                    setShowConfirmClose(false)
+                    onClose()
+                  }}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-100 py-3 text-xs font-bold text-gray-700 transition-all hover:bg-gray-200 active:scale-95 cursor-pointer"
                 >
                   <span>Сбросить и закрыть</span>
@@ -325,20 +344,33 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
           </div>
         )}
 
-        <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-gray-300 sm:hidden" />
-        <header className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+        <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-gray-300 sm:hidden" />
+        <header className="shrink-0 flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-white z-10">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0"><BookMarked size={20} /></div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
+              <BookMarked size={20} />
+            </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight text-gray-900 line-clamp-2">{isEdit ? (form.title || 'Параметры книги') : 'Новая книга'}</h2>
-              <p className="text-xs text-gray-400">{isEdit ? 'Измените параметры книги' : 'Добавление книги в коллекцию'}</p>
+              <h2 className="text-base font-bold tracking-tight text-gray-900 line-clamp-2">
+                {isEdit ? form.title || 'Параметры книги' : 'Новая книга'}
+              </h2>
+              <p className="text-xs text-gray-400">
+                {isEdit ? 'Измените параметры книги' : 'Добавление книги в коллекцию'}
+              </p>
             </div>
           </div>
-          <button type="button" aria-label="Закрыть" onClick={handleAttemptClose} className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 cursor-pointer"><X size={18} /></button>
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={handleAttemptClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+          >
+            <X size={18} />
+          </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto space-y-4 px-6 py-5 overscroll-contain">
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto space-y-4 px-5 py-4 sm:px-6 sm:py-5 overscroll-contain">
             {!isEdit ? (
               <div className="flex rounded-xl bg-gray-100 p-1">
                 <button type="button" onClick={() => setMode('url')} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all cursor-pointer ${mode === 'url' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}><Link2 size={14} /><span>По ссылке</span></button>

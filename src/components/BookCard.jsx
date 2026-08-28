@@ -153,7 +153,7 @@ export function BookCard({
         className="group relative flex w-full cursor-pointer flex-row items-center rounded-[20px] bg-white p-3 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none gap-3 hover:bg-gray-50/80"
       >
         {/* Обложка слева */}
-        <div className="relative w-[70px] h-[102px] sm:w-[78px] sm:h-[114px] shrink-0 overflow-hidden rounded-[14px] bg-gray-100">
+        <div className="relative w-[70px] h-[102px] sm:w-[76px] sm:h-[110px] shrink-0 overflow-hidden rounded-[14px] bg-gray-100">
           {showCover ? (
             <img
               src={book.coverUrl}
@@ -173,7 +173,7 @@ export function BookCard({
           {/* Верхняя строка: статус + дата + меню */}
           <div className="flex items-center justify-between gap-1">
             <span
-              className={`inline-flex items-center rounded-[20px] px-2 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+              className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
             >
               {statusLabel(book.status)}
             </span>
@@ -199,7 +199,7 @@ export function BookCard({
             </div>
           </div>
 
-          {/* Название и автор */}
+          {/* Название и автор снизу */}
           <div className="mt-1">
             <h4 className="font-extrabold text-[14px] sm:text-[15px] leading-snug text-gray-900 line-clamp-2">
               {book.title}
@@ -207,16 +207,6 @@ export function BookCard({
             <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
               {book.author || 'Автор не указан'}
             </p>
-          </div>
-
-          {/* Нижняя строка: только оценка (если есть) */}
-          <div className="mt-1.5 flex items-center min-h-[20px]">
-            {hasRating ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-bold text-white">
-                <Star size={9} className="fill-white text-white" />
-                <span>{book.rating}</span>
-              </span>
-            ) : null}
           </div>
         </div>
       </article>
@@ -227,95 +217,58 @@ export function BookCard({
   return (
     <article
       onClick={handleCardClick}
-      className="group relative flex w-full cursor-pointer flex-col justify-between items-stretch rounded-[22px] sm:rounded-[25px] bg-white p-3.5 sm:p-[20px] text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[310px] sm:h-[364px]"
+      className="group relative flex w-full cursor-pointer flex-col justify-between items-stretch rounded-[22px] sm:rounded-[25px] bg-white p-3.5 sm:p-[20px] text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[290px] sm:h-[340px]"
     >
-      {/* Меню действий */}
-      <div ref={menuRef} className="absolute top-3 right-3 z-10">
-        <button
-          type="button"
-          aria-label="Действия"
-          onClick={(event) => {
-            event.stopPropagation()
-            onToggleMenu(menuOpen ? null : book.id)
-          }}
-          className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+      {/* Верхняя часть: Статус + Меню действий */}
+      <div className="flex items-center justify-between gap-1">
+        <span
+          className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
         >
-          <MoreHorizontal size={17} />
-        </button>
-        {actionMenu}
-      </div>
+          {statusLabel(book.status)}
+        </span>
 
-      {/* Верхняя часть: Название и автор */}
-      <div className="flex flex-col items-start pr-7">
-        <h3 className="w-full truncate text-[14px] sm:text-[16px] font-bold leading-tight text-gray-900">
-          {book.title}
-        </h3>
-        <p className="mt-0.5 sm:mt-1 w-full truncate text-[12px] sm:text-[14px] font-medium text-gray-400">
-          {book.author || 'Автор не указан'}
-        </p>
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            aria-label="Действия"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleMenu(menuOpen ? null : book.id)
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+          {actionMenu}
+        </div>
       </div>
 
       {/* Обложка по центру */}
       <div className="my-auto flex justify-center py-1">
-        <div className="relative h-[130px] w-[90px] sm:h-[160px] sm:w-[112px] overflow-hidden rounded-[13px] sm:rounded-[15px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.12)]">
+        <div className="relative h-[135px] w-[92px] sm:h-[160px] sm:w-[112px] overflow-hidden rounded-[13px] sm:rounded-[15px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.10)]">
           {showCover ? (
             <img
               src={book.coverUrl}
               alt=""
-              className={`h-full w-full object-cover transition-all duration-300 ${
-                hasRating ? 'group-hover:scale-105 group-hover:blur-[5px]' : ''
-              }`}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={() => setCoverFailed(true)}
             />
           ) : (
-            <div
-              className={`h-full w-full bg-gray-50 flex items-center justify-center text-gray-300 transition-all duration-300 ${
-                hasRating ? 'group-hover:blur-[5px]' : ''
-              }`}
-            >
+            <div className="h-full w-full bg-gray-50 flex items-center justify-center text-gray-300">
               <span className="text-xl">📖</span>
             </div>
           )}
-
-          {/* Плашка оценки при ховере на десктопе */}
-          {hasRating ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-              <span className="rounded-full bg-white/95 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-[12px] font-semibold text-gray-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-sm">
-                {book.rating} / 10
-              </span>
-            </div>
-          ) : null}
         </div>
       </div>
 
-      {/* Нижняя часть карточки */}
-      <div className="flex items-end justify-between gap-1 pt-1">
-        <div className="flex min-w-0 max-w-[140px] sm:max-w-[170px] flex-col items-start gap-1">
-          <span
-            className={`inline-flex items-center rounded-[20px] px-2 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-[12px] font-medium leading-none ${getStatusStyle(book.status)}`}
-          >
-            {statusLabel(book.status)}
-          </span>
-          {book.tags?.length ? (
-            <div className="flex flex-wrap gap-1">
-              {book.tags.slice(0, 1).map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center justify-center rounded-[20px] bg-[#F6F6F6] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium leading-none text-gray-800 truncate max-w-[90px]"
-                >
-                  {tag.replace(/^#/, '')}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        {/* Дата прочтения */}
-        {period ? (
-          <span className="text-[10px] sm:text-[12px] font-medium leading-none text-gray-400 shrink-0">
-            {period}
-          </span>
-        ) : null}
+      {/* Нижняя часть: Название и автор */}
+      <div className="flex flex-col items-start pt-1">
+        <h3 className="w-full truncate text-[14px] sm:text-[16px] font-bold leading-tight text-gray-900">
+          {book.title}
+        </h3>
+        <p className="mt-0.5 w-full truncate text-[12px] sm:text-[14px] font-medium text-gray-400">
+          {book.author || 'Автор не указан'}
+        </p>
       </div>
     </article>
   )
