@@ -57,33 +57,58 @@ async function upsertAuthor(name) {
     .select('id')
     .single()
 
-  if (error) throw error
+  if (error) {
+    // В случае параллельной вставки или конфликта уникальности
+    const { data: retry } = await supabase
+      .from('authors')
+      .select('id')
+      .ilike('name', trimmed)
+      .limit(1)
+      .maybeSingle()
+    if (retry) return retry.id
+    throw error
+  }
   return created.id
 }
 
 async function upsertTag(name) {
+  const trimmed = (name || '').trim()
+  if (!trimmed) return null
+
   const { data: existing } = await supabase
     .from('tags')
     .select('id')
-    .eq('name', name)
+    .ilike('name', trimmed)
+    .limit(1)
     .maybeSingle()
 
   if (existing) return existing.id
 
   const { data: created, error } = await supabase
     .from('tags')
-    .insert({ name })
+    .insert({ name: trimmed })
     .select('id')
     .single()
 
-  if (error) throw error
+  if (error) {
+    // В случае параллельной вставки или конфликта уникальности
+    const { data: retry } = await supabase
+      .from('tags')
+      .select('id')
+      .ilike('name', trimmed)
+      .limit(1)
+      .maybeSingle()
+    if (retry) return retry.id
+    throw error
+  }
   return created.id
 }
 
 async function syncBookTags(bookId, tags) {
   await supabase.from('book_tags').delete().eq('book_id', bookId)
 
-  const tagIds = await Promise.all(tags.map((name) => upsertTag(name)))
+  const cleanTags = [...new Set((tags || []).map((t) => (t || '').trim()).filter(Boolean))]
+  const tagIds = (await Promise.all(cleanTags.map((name) => upsertTag(name)))).filter(Boolean)
   if (tagIds.length === 0) return
 
   const { error } = await supabase
@@ -196,23 +221,39 @@ export function useBooks() {
 
   const upsertBook = useCallback(async (book) => {
     try {
+      const isValidUUID =
+        book.id &&
+        typeof book.id === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          book.id,
+        )
+      const bookId = isValidUUID
+        ? book.id
+        : typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+              const r = (Math.random() * 16) | 0
+              const v = c === 'x' ? r : (r & 0x3) | 0x8
+              return v.toString(16)
+            })
+
       const authorId = await upsertAuthor(book.author)
 
       const payload = {
-        id: book.id,
-        title: book.title,
+        id: bookId,
+        title: (book.title || '').trim(),
         author_id: authorId,
         cover_url: book.coverUrl || null,
-        rating: book.rating,
-        status: book.status,
-        format: book.format,
-        read_month: book.readMonth ?? null,
-        read_year: book.readYear ?? null,
+        rating: book.rating != null ? Number(book.rating) : null,
+        status: book.status || 'want_to_read',
+        format: book.format || 'paper',
+        read_month: book.readMonth != null ? Number(book.readMonth) : null,
+        read_year: book.readYear != null ? Number(book.readYear) : null,
         review: book.review || null,
         quotes: book.quotes || null,
       }
-      if (book.pages != null) {
-        payload.pages = book.pages
+      if (book.pages != null && !Number.isNaN(Number(book.pages))) {
+        payload.pages = Number(book.pages)
       }
 
       const { error: bookError } = await supabase.from('books').upsert(payload, {
@@ -223,23 +264,29 @@ export function useBooks() {
         const { error: retryError } = await supabase.from('books').upsert(payload, {
           onConflict: 'id',
         })
-        if (retryError) throw retryError
+        if (retryError) {
+          console.error('Supabase books save error:', retryError)
+          throw retryError
+        }
       }
 
-      await syncBookTags(book.id, book.tags ?? [])
+      await syncBookTags(bookId, book.tags ?? [])
+
+      const savedBook = { ...book, id: bookId }
 
       setBooks((current) => {
-        const exists = current.some((item) => item.id === book.id)
+        const exists = current.some((item) => item.id === bookId)
         const updated = exists
-          ? current.map((item) => (item.id === book.id ? book : item))
-          : [{ ...book, createdAt: new Date().toISOString() }, ...current]
+          ? current.map((item) => (item.id === bookId ? savedBook : item))
+          : [{ ...savedBook, createdAt: new Date().toISOString() }, ...current]
         try {
           localStorage.setItem('reading_tracker_books_cache', JSON.stringify(updated))
         } catch {}
         return updated
       })
       toast.success('Книга сохранена')
-    } catch {
+    } catch (err) {
+      console.error('Error saving book:', err)
       toast.error('Ошибка сохранения')
     }
   }, [])
