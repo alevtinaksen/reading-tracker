@@ -191,8 +191,8 @@ export function Library({
 
         {/* Единая контрольная строка (Frame 45): Плашки статусов слева + Поиск и 3 круглые иконки справа */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 md:gap-4">
-          {/* Левая часть: плашки статусов */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {/* Левая часть: плашки статусов с достаточным вертикальным клиренсом для теней ховера */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 -my-3.5 px-1 -mx-1">
             <FilterChip
               active={statusFilter === 'all'}
               onClick={() => onStatusFilter('all')}
