@@ -503,9 +503,7 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                       value={form.author}
                       onChange={(v) => update('author', v)}
                       existingAuthors={uniqueAuthors(books)}
-                      inputClass={`${inputClass} ${
-                        fieldErrors.author ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''
-                      }`}
+                      hasError={Boolean(fieldErrors.author)}
                       placeholder="Например: Ю Несбё"
                     />
                   </Field>
@@ -703,15 +701,15 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                           }`}
                           placeholder="Ваши впечатления или поток мыслей (можно надиктовать голосом)…"
                         />
-                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
                           {rawReviewBackup && (
                             <button
                               type="button"
                               onClick={handleRestoreRawReview}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all cursor-pointer"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900 transition-all active:scale-95 cursor-pointer"
                               title="Вернуть исходный черновик"
                             >
-                              <RotateCcw size={12} />
+                              <RotateCcw size={15} strokeWidth={2} className="text-gray-900" />
                             </button>
                           )}
                           {form.review && form.review.trim() && (
@@ -719,28 +717,31 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                               type="button"
                               disabled={isPolishing}
                               onClick={handlePolishReview}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all cursor-pointer disabled:opacity-50"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900 transition-all active:scale-95 cursor-pointer disabled:opacity-35"
                               title="Превратить поток мыслей в красивый литературный отзыв"
                             >
                               {isPolishing ? (
-                                <Loader2 size={12} className="animate-spin text-purple-700" />
+                                <Loader2 size={15} strokeWidth={2} className="animate-spin text-gray-900" />
                               ) : (
-                                <Sparkles size={12} />
+                                <Sparkles size={15} strokeWidth={2} className="text-gray-900" />
                               )}
                             </button>
                           )}
                           <button
                             type="button"
                             onClick={toggleDictation}
-                            className={`flex h-7 px-2 items-center gap-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all active:scale-95 cursor-pointer ${
                               isRecording
                                 ? 'bg-red-500 text-white animate-pulse'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                : 'bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900'
                             }`}
                             title={isRecording ? 'Остановить запись' : 'Надиктовать отзыв голосом'}
                           >
-                            {isRecording ? <MicOff size={12} /> : <Mic size={12} />}
-                            <span>{isRecording ? 'Запись…' : 'Голос'}</span>
+                            {isRecording ? (
+                              <MicOff size={15} strokeWidth={2} className="text-white" />
+                            ) : (
+                              <Mic size={15} strokeWidth={2} className="text-gray-900" />
+                            )}
                           </button>
                         </div>
                       </div>

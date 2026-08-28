@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronsUpDown } from 'lucide-react'
 
-export function AuthorCombobox({ value = '', onChange, authors = [], existingAuthors, placeholder }) {
+export function AuthorCombobox({
+  value = '',
+  onChange,
+  authors = [],
+  existingAuthors,
+  placeholder,
+  hasError = false,
+  className = '',
+}) {
   const list = existingAuthors ?? authors ?? []
   const [open, setOpen] = useState(false)
   const rootRef = useRef(null)
@@ -30,7 +38,11 @@ export function AuthorCombobox({ value = '', onChange, authors = [], existingAut
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
+          className={`w-full rounded-xl border bg-white px-4 py-2.5 pr-10 text-sm text-gray-900 outline-none placeholder:text-gray-400 transition-all ${
+            hasError
+              ? 'border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+              : 'border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900'
+          } ${className}`}
           placeholder={placeholder}
           autoComplete="off"
         />
@@ -54,7 +66,7 @@ export function AuthorCombobox({ value = '', onChange, authors = [], existingAut
                     onChange(author)
                     setOpen(false)
                   }}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                 >
                   {author}
                 </button>
