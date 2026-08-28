@@ -276,8 +276,9 @@ function getDraftKeyboard(draft) {
       Markup.button.callback('✏️ Изм. название', 'edit_title'),
       Markup.button.callback('✏️ Изм. страницы', 'edit_pages'),
     ],
-    // Ряд 4: Сохранение
+    // Ряд 4: Сохранение и Отмена
     [
+      Markup.button.callback('❌ Отменить', 'cancel_book'),
       Markup.button.callback('✅ Сохранить в библиотеку', 'save_book'),
     ]
   ])
@@ -522,6 +523,26 @@ bot.action(/^format_(.+)$/, async (ctx) => {
       })
     } catch {}
   }
+})
+
+// Отмена добавления книги
+bot.action('cancel_book', async (ctx) => {
+  const userId = ctx.from.id
+  const session = userSessions.get(userId)
+  const title = session?.draft?.title || 'книги'
+
+  userSessions.delete(userId)
+  await ctx.answerCbQuery('Добавление отменено')
+
+  try {
+    await ctx.deleteMessage()
+  } catch {
+    try {
+      await ctx.editMessageCaption(`❌ Добавление «${title}» отменено.`)
+    } catch {}
+  }
+
+  await ctx.reply(`❌ Добавление книги «${title}» отменено.`)
 })
 
 // Сохранение книги в Supabase
