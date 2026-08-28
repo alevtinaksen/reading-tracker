@@ -3,14 +3,12 @@ import {
   BookOpen,
   Flame,
   Headphones,
-  Layers,
   Smartphone,
   Sparkles,
   Star,
   TrendingUp,
   Trophy,
   Users,
-  Zap,
 } from 'lucide-react'
 import { FORMAT, FORMAT_OPTIONS, MONTHS, STATUS } from '../constants'
 import { YearInReviewModal } from './YearInReviewModal'
@@ -33,32 +31,6 @@ function getRatingShade(rating) {
   if (num >= 8.0) return { text: 'text-gray-800', bar: 'bg-gray-700', star: 'fill-gray-700 text-gray-700' }
   if (num >= 7.0) return { text: 'text-gray-600', bar: 'bg-gray-500', star: 'fill-gray-500 text-gray-500' }
   return { text: 'text-gray-400', bar: 'bg-gray-400', star: 'fill-gray-400 text-gray-400' }
-}
-
-// Генератор гладкой кривой Безье для графика активности
-function generateSmoothCurve(values, width = 900, height = 190, padX = 45, padY = 25) {
-  const max = Math.max(...values, 1)
-  const innerW = width - padX * 2
-  const innerH = height - padY * 2
-
-  const coords = values.map((val, idx) => ({
-    x: padX + (idx / (values.length - 1)) * innerW,
-    y: padY + (1 - val / max) * innerH,
-    val,
-  }))
-
-  let linePath = `M ${coords[0].x} ${coords[0].y}`
-  for (let i = 0; i < coords.length - 1; i++) {
-    const p0 = coords[i]
-    const p1 = coords[i + 1]
-    const midX = (p0.x + p1.x) / 2
-    linePath += ` C ${midX} ${p0.y}, ${midX} ${p1.y}, ${p1.x} ${p1.y}`
-  }
-
-  const groundY = height - 5
-  const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${groundY} L ${coords[0].x} ${groundY} Z`
-
-  return { linePath, areaPath, coords, max }
 }
 
 export function Dashboard({ books }) {
@@ -118,18 +90,23 @@ export function Dashboard({ books }) {
       ? '—'
       : (rated.reduce((sum, book) => sum + Number(book.rating), 0) / rated.length).toFixed(1)
 
-  // График активности по 12 месяцам
-  const activityMonthCounts = useMemo(() => {
-    return MONTHS.map(
-      (item) =>
-        finished.filter((book) => Number(book.readMonth) === item.value).length,
-    )
+  // Данные активности по 12 месяцам (книги + страницы)
+  const monthsData = useMemo(() => {
+    return MONTHS.map((item) => {
+      const monthBooks = finished.filter((book) => Number(book.readMonth) === item.value)
+      const count = monthBooks.length
+      const pages = monthBooks.reduce((sum, b) => sum + (Number(b.pages) || 0), 0)
+      return {
+        month: item.label,
+        value: item.value,
+        count,
+        pages,
+        books: monthBooks,
+      }
+    })
   }, [finished])
 
-  const curveData = useMemo(
-    () => generateSmoothCurve(activityMonthCounts),
-    [activityMonthCounts],
-  )
+  const activityMonthCounts = useMemo(() => monthsData.map((m) => m.count), [monthsData])
 
   // Цель чтения
   const goalYearCount = totalYearCount
@@ -326,9 +303,9 @@ export function Dashboard({ books }) {
           })}
         </section>
 
-        {/* 2. График «Активность по месяцам» — Современный столбчатый график */}
+        {/* 2. Карта активности по месяцам — 12 эстетичных интерактивных карточек */}
         <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-gray-100">
             <div>
               <h2 className="text-base font-bold tracking-tight text-gray-900">
                 Активность по месяцам
@@ -337,46 +314,71 @@ export function Dashboard({ books }) {
                 {totalYearCount} {plural(totalYearCount, 'книга', 'книги', 'книг')} {isAllYears ? 'за все время' : `за ${filterYear} год`}
               </p>
             </div>
+            <div className="flex items-center gap-3 text-xs font-semibold text-gray-500">
+              {maxMonthCount > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-gray-800">
+                  <Flame size={13} className="text-amber-500" />
+                  <span>Пик: {peakMonthName} ({maxMonthCount} кн.)</span>
+                </span>
+              ) : null}
+              <span className="hidden sm:inline text-gray-300">|</span>
+              <span className="hidden sm:inline text-gray-400">
+                Среднее: {(totalYearCount / 12).toFixed(1)} кн/мес
+              </span>
+            </div>
           </div>
 
-          {/* 12 столбцов месяцев с идеальной адаптацией */}
-          <div className="mt-8 grid grid-cols-12 gap-1 sm:gap-2.5 items-end h-[155px] pt-4 pb-1">
-            {MONTHS.map((m, idx) => {
-              const count = activityMonthCounts[idx] || 0
-              const isPeak = count > 0 && count === maxMonthCount
-              const heightPct = maxMonthCount > 0 ? Math.max((count / maxMonthCount) * 100, 8) : 0
+          {/* Сетка 12 месяцев */}
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
+            {monthsData.map((m) => {
+              const isPeak = m.count > 0 && m.count === maxMonthCount
+              const fillPct = maxMonthCount > 0 ? Math.round((m.count / maxMonthCount) * 100) : 0
 
               return (
-                <div key={m.value} className="group relative flex flex-col items-center justify-end h-full w-full">
-                  {/* Число над столбцом */}
-                  {count > 0 ? (
-                    <span className="mb-2 text-xs sm:text-sm font-extrabold text-gray-900 leading-none select-none transition-transform group-hover:scale-110">
-                      {count}
+                <div
+                  key={m.value}
+                  className={`group relative flex flex-col justify-between rounded-2xl p-4 transition-all duration-200 border ${
+                    isPeak
+                      ? 'border-gray-900 bg-gray-900 text-white shadow-xs'
+                      : m.count > 0
+                        ? 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-xs text-gray-900'
+                        : 'border-transparent bg-gray-50/60 text-gray-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold ${isPeak ? 'text-white' : m.count > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {m.month}
                     </span>
-                  ) : (
-                    <span className="mb-2 text-[10px] font-medium text-transparent leading-none select-none">
-                      0
-                    </span>
-                  )}
-
-                  {/* Столбец */}
-                  <div className="w-full flex items-end justify-center h-[85px]">
-                    {count > 0 ? (
-                      <div
-                        className={`w-full max-w-[26px] sm:max-w-[34px] rounded-t-lg sm:rounded-t-xl transition-all duration-300 group-hover:opacity-90 ${
-                          isPeak ? 'bg-gray-900' : 'bg-gray-800'
-                        }`}
-                        style={{ height: `${heightPct}%` }}
-                      />
-                    ) : (
-                      <div className="h-1.5 w-full max-w-[26px] sm:max-w-[34px] rounded-full bg-gray-100 transition-colors group-hover:bg-gray-200" />
-                    )}
+                    {isPeak ? (
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 text-white px-1.5 py-0.5 rounded-md">
+                        Топ
+                      </span>
+                    ) : null}
                   </div>
 
-                  {/* Название месяца */}
-                  <span className="mt-2.5 text-[10px] sm:text-xs font-semibold text-gray-400 group-hover:text-gray-900 transition-colors select-none text-center">
-                    {m.label.slice(0, 3)}
-                  </span>
+                  <div className="my-2">
+                    <div className="flex items-baseline gap-1">
+                      <span className={`text-2xl font-black tracking-tight leading-none ${isPeak ? 'text-white' : m.count > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                        {m.count}
+                      </span>
+                      <span className={`text-[11px] font-medium ${isPeak ? 'text-white/70' : m.count > 0 ? 'text-gray-400' : 'text-gray-300'}`}>
+                        {m.count > 0 ? plural(m.count, 'кн.', 'кн.', 'кн.') : 'книг'}
+                      </span>
+                    </div>
+                    {m.pages > 0 ? (
+                      <p className={`mt-0.5 text-[10px] font-medium truncate ${isPeak ? 'text-white/60' : 'text-gray-400'}`}>
+                        {m.pages.toLocaleString('ru-RU')} стр.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {/* Индикатор активности */}
+                  <div className={`h-1.5 w-full rounded-full overflow-hidden ${isPeak ? 'bg-white/20' : 'bg-gray-100'}`}>
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${isPeak ? 'bg-white' : 'bg-gray-900'}`}
+                      style={{ width: `${fillPct}%` }}
+                    />
+                  </div>
                 </div>
               )
             })}

@@ -1,35 +1,102 @@
-import { useState } from 'react'
-import { Toaster } from 'sonner'
+import { useEffect, useState } from 'react'
+import { Toaster, toast } from 'sonner'
 import { BookFormModal } from './components/BookFormModal'
 import { BottomAddButton } from './components/BottomAddButton'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { Dashboard } from './components/Dashboard'
 import { Library } from './components/Library'
 import { TopNav } from './components/TopNav'
-import { EMPTY_BOOK } from './constants'
+import { EMPTY_BOOK, STATUS } from './constants'
 import { useBooks } from './hooks/useBooks'
+
+function getInitialStateFromUrl() {
+  if (typeof window === 'undefined') return { page: 'library', status: 'all' }
+
+  const searchParams = new URLSearchParams(window.location.search)
+  const hash = window.location.hash.replace('#', '')
+
+  const tab = searchParams.get('tab') || hash
+  if (tab === 'dashboard') {
+    return { page: 'dashboard', status: 'all' }
+  }
+
+  const rawStatus = searchParams.get('status') || (hash.startsWith('status=') ? hash.replace('status=', '') : hash)
+  const validStatuses = ['want_to_read', 'reading', 'read', 'abandoned', 'all']
+
+  if (rawStatus === 'wishlist' || rawStatus === 'wantToRead') {
+    return { page: 'library', status: 'want_to_read' }
+  }
+
+  if (validStatuses.includes(rawStatus)) {
+    return { page: 'library', status: rawStatus }
+  }
+
+  return { page: 'library', status: 'all' }
+}
 
 function App() {
   const { books, tags, loading, error, upsertBook, removeBook, markAsRead, importBooks } =
     useBooks()
-  const [page, setPage] = useState('library')
-  const [statusFilter, setStatusFilter] = useState('all')
+
+  const initial = getInitialStateFromUrl()
+  const [page, setPage] = useState(initial.page)
+  const [statusFilter, setStatusFilter] = useState(initial.status)
   const [editing, setEditing] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+
+  // Синхронизация URL при изменении страницы или фильтра
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+
+    if (page === 'dashboard') {
+      url.search = '?tab=dashboard'
+      url.hash = ''
+    } else {
+      if (statusFilter && statusFilter !== 'all') {
+        url.search = `?status=${statusFilter}`
+        url.hash = ''
+      } else {
+        url.search = ''
+        url.hash = ''
+      }
+    }
+    window.history.replaceState({}, '', url.toString())
+  }, [page, statusFilter])
+
+  // Слушатель событий истории браузера (кнопки Вперёд/Назад)
+  useEffect(() => {
+    function handlePopState() {
+      const state = getInitialStateFromUrl()
+      setPage(state.page)
+      setStatusFilter(state.status)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  function handleNavigate(newPage) {
+    setPage(newPage)
+  }
+
+  function handleStatusFilter(newStatus) {
+    setStatusFilter(newStatus)
+    setPage('library')
+  }
 
   function openCreate() {
     setEditing({ ...EMPTY_BOOK, tags: [] })
   }
 
   function openCreateWithStatus(status) {
-    const isNoRating = status === 'want_to_read' || status === 'abandoned'
+    const isNoRating = status === STATUS.wantToRead || status === STATUS.abandoned
     setEditing({
       ...EMPTY_BOOK,
       tags: [],
       status,
       rating: isNoRating ? null : 7,
-      readMonth: status === 'want_to_read' ? null : new Date().getMonth() + 1,
-      readYear: status === 'want_to_read' ? null : new Date().getFullYear(),
+      readMonth: status === STATUS.wantToRead ? null : new Date().getMonth() + 1,
+      readYear: status === STATUS.wantToRead ? null : new Date().getFullYear(),
     })
   }
 
@@ -49,10 +116,22 @@ function App() {
     setDeleteTarget(null)
   }
 
+  // Быстрая оценка из контекстного меню
+  async function handleQuickRate(bookId, newRating) {
+    const book = books.find((b) => b.id === bookId)
+    if (!book) return
+    const updated = {
+      ...book,
+      rating: newRating,
+    }
+    await upsertBook(updated)
+    toast.success(newRating ? `Оценка обновлена: ${newRating} ★` : 'Оценка сброшена')
+  }
+
   return (
     <div className="min-h-svh bg-[#F5F5F5] text-gray-900">
       {/* 1. Верхнее навигационное меню (всегда по центру) */}
-      <TopNav current={page} onNavigate={setPage} />
+      <TopNav current={page} onNavigate={handleNavigate} />
 
       {/* 2. Основной контент */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 pb-32">
@@ -71,9 +150,10 @@ function App() {
               <Library
                 books={books}
                 statusFilter={statusFilter}
-                onStatusFilter={setStatusFilter}
+                onStatusFilter={handleStatusFilter}
                 onEdit={openEdit}
                 onMarkRead={markAsRead}
+                onQuickRate={handleQuickRate}
                 onDelete={requestDelete}
                 onAdd={openCreate}
                 onImportBooks={importBooks}

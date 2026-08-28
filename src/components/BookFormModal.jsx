@@ -284,20 +284,37 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
         
         {showConfirmClose && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-2xl text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-                <PenLine size={22} strokeWidth={2} />
+            <div className="w-full max-w-sm rounded-[28px] bg-white p-7 shadow-[0_24px_70px_rgba(0,0,0,0.20)] border border-gray-100 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-900">
+                <PenLine size={20} strokeWidth={2} />
               </div>
-              <h3 className="mt-3 text-base font-bold text-gray-900">Несохранённые изменения</h3>
-              <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">Вы изменили данные книги. Сохранить их перед закрытием?</p>
-              <div className="mt-5 space-y-2">
-                <button type="button" onClick={(e) => { setShowConfirmClose(false); handleSubmit(e) }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 cursor-pointer shadow-xs">
-                  <Check size={14} strokeWidth={2.5} /><span>Сохранить</span>
+              <h3 className="mt-4 text-[16px] font-extrabold text-gray-900">Несохранённые изменения</h3>
+              <p className="mt-1.5 text-xs text-gray-500 leading-relaxed px-2">
+                Вы изменили данные книги. Сохранить их перед закрытием?
+              </p>
+              <div className="mt-6 space-y-2.5">
+                <button
+                  type="button"
+                  onClick={(e) => { setShowConfirmClose(false); handleSubmit(e) }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3.5 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 cursor-pointer shadow-xs"
+                >
+                  <Check size={14} strokeWidth={2.5} />
+                  <span>Сохранить изменения</span>
                 </button>
-                <button type="button" onClick={() => { setShowConfirmClose(false); onClose() }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-3 text-xs font-bold text-red-600 transition-all hover:bg-red-100 active:scale-95 cursor-pointer">
-                  <Trash2 size={14} /><span>Сбросить</span>
+                <button
+                  type="button"
+                  onClick={() => { setShowConfirmClose(false); onClose() }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-100 py-3 text-xs font-bold text-gray-700 transition-all hover:bg-gray-200 active:scale-95 cursor-pointer"
+                >
+                  <span>Сбросить и закрыть</span>
                 </button>
-                <button type="button" onClick={() => setShowConfirmClose(false)} className="w-full py-2 text-xs font-semibold text-gray-400 hover:text-gray-700 cursor-pointer">Продолжить редактирование</button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmClose(false)}
+                  className="w-full py-1.5 text-xs font-semibold text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"
+                >
+                  Продолжить редактирование
+                </button>
               </div>
             </div>
           </div>
