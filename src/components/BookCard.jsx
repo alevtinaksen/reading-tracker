@@ -223,38 +223,40 @@ export function BookCard({
             </div>
           </article>
         ) : (
-          /* Мобильная сетка (вертикальная карточка для 2 колонок) */
+          /* Мобильная сетка (вертикальная карточка: название/автор наверху, статус внизу) */
           <article
             onClick={handleCardClick}
-            className="group relative flex w-full cursor-pointer flex-col justify-between items-stretch rounded-[22px] bg-white p-3.5 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[290px]"
+            className="group relative flex w-full cursor-pointer flex-col justify-between items-stretch rounded-[22px] bg-white p-3.5 text-[14px] font-normal leading-normal text-[#000] transition-all duration-200 select-none h-[295px]"
           >
-            {/* Верхняя часть: Статус + Меню действий */}
-            <div className="flex items-center justify-between gap-1">
-              <span
-                className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+            {/* Меню действий в верхнем правом углу */}
+            <div ref={mobileMenuRef} className="absolute top-3 right-3 z-10">
+              <button
+                type="button"
+                aria-label="Действия"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleMenu(menuOpen ? null : book.id)
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
               >
-                {statusLabel(book.status)}
-              </span>
+                <MoreHorizontal size={16} />
+              </button>
+              {menuOpen ? renderActionMenu() : null}
+            </div>
 
-              <div ref={mobileMenuRef} className="relative">
-                <button
-                  type="button"
-                  aria-label="Действия"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onToggleMenu(menuOpen ? null : book.id)
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
-                >
-                  <MoreHorizontal size={16} />
-                </button>
-                {menuOpen ? renderActionMenu() : null}
-              </div>
+            {/* Верхняя часть: Название и автор */}
+            <div className="flex flex-col items-start pr-7">
+              <h3 className="w-full truncate text-[14px] font-bold leading-tight text-gray-900">
+                {book.title}
+              </h3>
+              <p className="mt-0.5 w-full truncate text-[12px] font-medium text-gray-400">
+                {book.author || 'Автор не указан'}
+              </p>
             </div>
 
             {/* Обложка по центру */}
             <div className="my-auto flex justify-center py-1">
-              <div className="relative h-[135px] w-[92px] overflow-hidden rounded-[13px] bg-white shadow-[0_4px_20px_0_rgba(0,0,0,0.10)]">
+              <div className="relative h-[135px] w-[92px] overflow-hidden rounded-[13px] bg-white shadow-[0_4px_16px_0_rgba(0,0,0,0.10)]">
                 {showCover ? (
                   <img
                     src={book.coverUrl}
@@ -270,14 +272,19 @@ export function BookCard({
               </div>
             </div>
 
-            {/* Нижняя часть: Название и автор */}
-            <div className="flex flex-col items-start pt-1">
-              <h3 className="w-full truncate text-[14px] font-bold leading-tight text-gray-900">
-                {book.title}
-              </h3>
-              <p className="mt-0.5 w-full truncate text-[12px] font-medium text-gray-400">
-                {book.author || 'Автор не указан'}
-              </p>
+            {/* Нижняя часть: Статус книги и дата */}
+            <div className="flex items-end justify-between gap-1 pt-0.5">
+              <span
+                className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+              >
+                {statusLabel(book.status)}
+              </span>
+
+              {period ? (
+                <span className="text-[10px] font-medium leading-none text-gray-400 shrink-0">
+                  {period}
+                </span>
+              ) : null}
             </div>
           </article>
         )}

@@ -70,9 +70,7 @@ export function Library({
   onNavigate,
 }) {
   const [menuId, setMenuId] = useState(null)
-  const [viewMode, setViewMode] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 640 ? 'list' : 'grid'
-  )
+  const [viewMode, setViewMode] = useState('list')
   const [sortBy, setSortBy] = useState('newest')
   const [sortOpen, setSortOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
