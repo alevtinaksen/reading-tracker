@@ -143,7 +143,7 @@ export function BookCard({
               {/* Верхняя строка: статус слева строго вровень с верхом обложки */}
               <div className="flex items-start">
                 <span
-                  className={`inline-flex items-center rounded-[20px] px-3 py-1 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+                  className={`inline-flex items-center rounded-[20px] px-2.5 py-1 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
                 >
                   {statusLabel(book.status)}
                 </span>
@@ -220,7 +220,7 @@ export function BookCard({
             {/* Нижняя часть: Статус книги и дата */}
             <div className="flex items-end justify-between gap-1 pt-0.5">
               <span
-                className={`inline-flex items-center rounded-[20px] px-3 py-1 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
+                className={`inline-flex items-center rounded-[20px] px-2.5 py-1 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
               >
                 {statusLabel(book.status)}
               </span>

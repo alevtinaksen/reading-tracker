@@ -186,7 +186,13 @@ function App() {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      <Toaster position="bottom-left" />
+      <Toaster
+        position="bottom-center"
+        offset="5.5rem"
+        toastOptions={{
+          className: 'shadow-[0_12px_40px_rgba(0,0,0,0.14)] rounded-2xl border-gray-100 font-semibold text-xs',
+        }}
+      />
     </div>
   )
 }
