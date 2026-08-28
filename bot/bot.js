@@ -181,6 +181,55 @@ bot.start((ctx) => {
   )
 })
 
+// Функция генерации клавиатуры для драфта
+function getDraftKeyboard(draft) {
+  const isWant = draft.status === 'want_to_read'
+  const isReading = draft.status === 'reading'
+  const isRead = draft.status === 'read'
+
+  const isPaper = draft.format === 'paper'
+  const isAudio = draft.format === 'audio'
+  const isEbook = draft.format === 'ebook'
+
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(isWant ? '💜 [Хочу прочитать]' : 'Хочу прочитать', 'status_want_to_read'),
+      Markup.button.callback(isReading ? '💙 [В процессе]' : 'В процессе', 'status_reading'),
+      Markup.button.callback(isRead ? '💚 [Прочитано]' : 'Прочитано', 'status_read'),
+    ],
+    [
+      Markup.button.callback(isPaper ? '📖 [Бумага]' : '📖 Бумага', 'format_paper'),
+      Markup.button.callback(isAudio ? '🎧 [Аудио]' : '🎧 Аудио', 'format_audio'),
+      Markup.button.callback(isEbook ? '📱 [Электронная]' : '📱 Электронная', 'format_ebook'),
+    ],
+    [
+      Markup.button.callback('✅ Сохранить в библиотеку', 'save_book'),
+    ]
+  ])
+}
+
+function getDraftCaption(draft) {
+  const statusLabels = {
+    want_to_read: '💜 Хочу прочитать',
+    reading: '💙 В процессе',
+    read: '💚 Прочитано',
+    abandoned: '💔 Брошено'
+  }
+  const formatLabels = {
+    paper: '📖 Бумага',
+    audio: '🎧 Аудио',
+    ebook: '📱 Электронная'
+  }
+
+  return (
+    `📖 *${draft.title}*\n` +
+    `✍️ Автор: *${draft.author || 'Не указан'}*\n` +
+    `📄 Страниц: *${draft.pages}*\n` +
+    `📌 Статус: *${statusLabels[draft.status] || draft.status}*\n` +
+    `📦 Формат: *${formatLabels[draft.format] || draft.format}*`
+  )
+}
+
 // Обработка текстовых сообщений (ссылки или названия)
 bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim()
@@ -216,28 +265,8 @@ bot.on('text', async (ctx) => {
 
   userDrafts.set(userId, draft)
 
-  const caption =
-    `📖 *${draft.title}*\n` +
-    `✍️ Автор: *${draft.author || 'Не указан'}*\n` +
-    `📄 Страниц: *${draft.pages}*\n` +
-    `📌 Статус: *Хочу прочитать* (по умолчанию)\n` +
-    `📦 Формат: *Бумага*`
-
-  const keyboard = Markup.inlineKeyboard([
-    [
-      Markup.button.callback('💜 Хочу прочитать', 'status_want_to_read'),
-      Markup.button.callback('💙 В процессе', 'status_reading'),
-      Markup.button.callback('💚 Прочитано', 'status_read'),
-    ],
-    [
-      Markup.button.callback('📖 Бумага', 'format_paper'),
-      Markup.button.callback('🎧 Аудио', 'format_audio'),
-      Markup.button.callback('📱 Электронная', 'format_ebook'),
-    ],
-    [
-      Markup.button.callback('✅ Сохранить в библиотеку', 'save_book'),
-    ]
-  ])
+  const caption = getDraftCaption(draft)
+  const keyboard = getDraftKeyboard(draft)
 
   if (draft.coverUrl) {
     try {
@@ -265,13 +294,30 @@ bot.action(/^status_(.+)$/, async (ctx) => {
   userDrafts.set(userId, draft)
 
   const statusNames = {
-    want_to_read: '💜 Хочу прочитать',
-    reading: '💙 В процессе',
-    read: '💚 Прочитано',
-    abandoned: '💔 Брошено'
+    want_to_read: 'Хочу прочитать',
+    reading: 'В процессе',
+    read: 'Прочитано',
+    abandoned: 'Брошено'
   }
 
-  await ctx.answerCbQuery(`Статус изменен на: ${statusNames[newStatus] || newStatus}`)
+  await ctx.answerCbQuery(`Выбрано: ${statusNames[newStatus] || newStatus}`)
+
+  try {
+    const caption = getDraftCaption(draft)
+    const keyboard = getDraftKeyboard(draft)
+    await ctx.editMessageCaption(caption, {
+      parse_mode: 'Markdown',
+      ...keyboard
+    })
+  } catch {
+    // В случае текстового сообщения без фото
+    try {
+      await ctx.editMessageText(getDraftCaption(draft), {
+        parse_mode: 'Markdown',
+        ...getDraftKeyboard(draft)
+      })
+    } catch {}
+  }
 })
 
 // Обработка кнопок смены формата
@@ -285,12 +331,28 @@ bot.action(/^format_(.+)$/, async (ctx) => {
   userDrafts.set(userId, draft)
 
   const formatNames = {
-    paper: '📖 Бумага',
-    audio: '🎧 Аудио',
-    ebook: '📱 Электронная'
+    paper: 'Бумага',
+    audio: 'Аудио',
+    ebook: 'Электронная'
   }
 
-  await ctx.answerCbQuery(`Формат: ${formatNames[newFormat] || newFormat}`)
+  await ctx.answerCbQuery(`Выбран формат: ${formatNames[newFormat] || newFormat}`)
+
+  try {
+    const caption = getDraftCaption(draft)
+    const keyboard = getDraftKeyboard(draft)
+    await ctx.editMessageCaption(caption, {
+      parse_mode: 'Markdown',
+      ...keyboard
+    })
+  } catch {
+    try {
+      await ctx.editMessageText(getDraftCaption(draft), {
+        parse_mode: 'Markdown',
+        ...getDraftKeyboard(draft)
+      })
+    } catch {}
+  }
 })
 
 // Сохранение книги в Supabase
@@ -330,8 +392,9 @@ bot.action('save_book', async (ctx) => {
     userDrafts.delete(userId)
 
     await ctx.replyWithMarkdown(
-      `🎉 *Книга «${draft.title}» успешно добавлена в библиотеку!*\n\n` +
-      `🌐 Посмотреть на сайте:\nhttps://reading-tracker-ten-rho.vercel.app/`
+      `🎉 *Книга «${draft.title}» (${draft.author || 'Без автора'}) успешно добавлена в библиотеку!*\n\n` +
+      `📄 Страниц: ${draft.pages}\n` +
+      `🌐 Открыть в трекере:\nhttps://reading-tracker-ten-rho.vercel.app/`
     )
   } catch (err) {
     console.error('Error saving book via Telegram bot:', err)
