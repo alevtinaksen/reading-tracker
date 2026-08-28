@@ -420,23 +420,6 @@ export function Library({
             </div>
           </div>
         </div>
-
-        {/* Быстрые кликабельные теги выбранных фильтров (если есть активный жанр) */}
-        {selectedGenre !== 'all' ? (
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-400">Фильтр:</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white shadow-xs">
-              <span>#{selectedGenre}</span>
-              <button
-                type="button"
-                onClick={() => setSelectedGenre('all')}
-                className="hover:text-gray-300 ml-1 cursor-pointer"
-              >
-                <X size={12} />
-              </button>
-            </span>
-          </div>
-        ) : null}
       </header>
 
       {/* Сетка карточек */}
