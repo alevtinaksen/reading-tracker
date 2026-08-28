@@ -667,27 +667,16 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                       >
                         {genreMessage}
                       </span>
-                    ) : (mode === 'manual' || isEdit) && form.title ? (
-                      <button
-                        type="button"
-                        disabled={isDetectingGenres}
-                        onClick={() => handleAutoDetectGenres()}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
-                      >
-                        {isDetectingGenres ? (
-                          <Loader2 size={11} className="animate-spin text-gray-400" />
-                        ) : (
-                          <Sparkles size={11} className="text-amber-500" />
-                        )}
-                        <span>Подобрать AI</span>
-                      </button>
                     ) : null
                   }
                 >
                   <TagMultiSelect
-                    tags={form.tags ?? []}
-                    availableTags={tagOptions}
-                    onChange={(t) => update('tags', t)}
+                    value={form.tags ?? []}
+                    options={tagOptions}
+                    onChange={(v) => update('tags', v)}
+                    onAutoDetect={mode === 'manual' || isEdit ? () => handleAutoDetectGenres() : undefined}
+                    isDetecting={isDetectingGenres}
+                    canAutoDetect={Boolean(form.title?.trim())}
                   />
                 </Field>
 
@@ -704,19 +693,25 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
 
                 {showNotes ? (
                   <div className="space-y-4 pt-1 animate-in fade-in duration-200">
-                    <Field
-                      label="Отзыв о книге"
-                      action={
-                        <div className="flex items-center gap-2">
+                    <Field label="Отзыв о книге">
+                      <div className="relative">
+                        <textarea
+                          value={form.review}
+                          onChange={(e) => update('review', e.target.value)}
+                          className={`${inputClass} pr-28 min-h-[90px] resize-y leading-relaxed ${
+                            isRecording ? 'border-red-400 ring-2 ring-red-100' : ''
+                          }`}
+                          placeholder="Ваши впечатления или поток мыслей (можно надиктовать голосом)…"
+                        />
+                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
                           {rawReviewBackup && (
                             <button
                               type="button"
                               onClick={handleRestoreRawReview}
-                              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all cursor-pointer"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all cursor-pointer"
                               title="Вернуть исходный черновик"
                             >
-                              <RotateCcw size={11} />
-                              <span>Вернуть</span>
+                              <RotateCcw size={12} />
                             </button>
                           )}
                           {form.review && form.review.trim() && (
@@ -724,39 +719,31 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                               type="button"
                               disabled={isPolishing}
                               onClick={handlePolishReview}
-                              className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 hover:bg-purple-100 transition-all cursor-pointer disabled:opacity-50"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all cursor-pointer disabled:opacity-50"
                               title="Превратить поток мыслей в красивый литературный отзыв"
                             >
                               {isPolishing ? (
-                                <Loader2 size={11} className="animate-spin" />
+                                <Loader2 size={12} className="animate-spin text-purple-700" />
                               ) : (
-                                <Sparkles size={11} />
+                                <Sparkles size={12} />
                               )}
-                              <span>Улучшить AI</span>
                             </button>
                           )}
                           <button
                             type="button"
                             onClick={toggleDictation}
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold transition-all cursor-pointer ${
+                            className={`flex h-7 px-2 items-center gap-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                               isRecording
                                 ? 'bg-red-500 text-white animate-pulse'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                             title={isRecording ? 'Остановить запись' : 'Надиктовать отзыв голосом'}
                           >
-                            {isRecording ? <MicOff size={11} /> : <Mic size={11} />}
-                            <span>{isRecording ? 'Идёт запись…' : 'Голос'}</span>
+                            {isRecording ? <MicOff size={12} /> : <Mic size={12} />}
+                            <span>{isRecording ? 'Запись…' : 'Голос'}</span>
                           </button>
                         </div>
-                      }
-                    >
-                      <textarea
-                        value={form.review}
-                        onChange={(e) => update('review', e.target.value)}
-                        className={`${inputClass} min-h-[90px] resize-y leading-relaxed`}
-                        placeholder="Ваши впечатления или поток мыслей (можно надиктовать голосом)…"
-                      />
+                      </div>
                     </Field>
 
                     <Field label="Цитаты и заметки">
