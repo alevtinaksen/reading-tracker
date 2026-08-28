@@ -36,7 +36,7 @@ function getRatingShade(rating) {
 }
 
 // Генератор гладкой кривой Безье для графика активности
-function generateSmoothCurve(values, width = 1000, height = 220, padX = 40, padY = 35) {
+function generateSmoothCurve(values, width = 900, height = 190, padX = 45, padY = 25) {
   const max = Math.max(...values, 1)
   const innerW = width - padX * 2
   const innerH = height - padY * 2
@@ -198,15 +198,15 @@ export function Dashboard({ books }) {
 
   const stats = [
     {
-      label: isAllYears ? 'ВСЕГО ПРОЧИТАНО' : `ПРОЧИТАНО`,
+      label: isAllYears ? 'ВСЕГО ПРОЧИТАНО' : 'ПРОЧИТАНО',
       value: totalYearCount,
-      hint: isAllYears ? 'Всего прочитанных книг' : `Прочитано в ${filterYear} году`,
+      hint: isAllYears ? 'Всего прочитанных книг' : `За ${filterYear} год`,
       icon: Trophy,
     },
     {
       label: 'ПРОЧИТАНО СТРАНИЦ',
       value: totalPages > 0 ? totalPages.toLocaleString('ru-RU') : '0',
-      hint: avgPagesPerBook ? `~${avgPagesPerBook} стр. в одной книге` : 'страницы не указаны',
+      hint: avgPagesPerBook ? `~${avgPagesPerBook} стр. в книге` : 'страницы не указаны',
       icon: BookOpen,
     },
     {
@@ -214,6 +214,12 @@ export function Dashboard({ books }) {
       value: average,
       hint: rated.length > 0 ? `На основе ${rated.length} ${plural(rated.length, 'оценки', 'оценок', 'оценок')}` : 'нет оценок',
       icon: Star,
+    },
+    {
+      label: 'СКОРОСТЬ ЧТЕНИЯ',
+      value: readingSpeed,
+      hint: pagesPerDay > 0 ? `~${pagesPerDay} стр./день` : 'книг в месяц',
+      icon: TrendingUp,
     },
     {
       label: 'ПИК ЧТЕНИЯ',
@@ -277,50 +283,50 @@ export function Dashboard({ books }) {
             })}
           </div>
 
-          {/* Кнопка Итоги года в строгом премиальном черном стиле */}
+          {/* Кнопка Итоги года в строгом статичном черном стиле */}
           <button
             type="button"
             onClick={() => setYearInReviewOpen(true)}
             className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-xs font-bold text-white shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all hover:bg-gray-800 hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] active:scale-95 cursor-pointer"
           >
             <Sparkles size={14} className="text-white" />
-            <span>Итоги {filterYear ? `${filterYear} года` : 'года'}</span>
+            <span>Итоги года</span>
           </button>
         </div>
       </header>
 
       {/* Bento Grid со строгими отступами */}
       <div className="space-y-1 pb-16">
-        {/* 1. 4 Карточки ключевых показателей */}
-        <section className="grid grid-cols-2 gap-1 lg:grid-cols-4">
+        {/* 1. 5 Карточек ключевых показателей */}
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
               <article
                 key={stat.label}
-                className="flex flex-col justify-between rounded-[20px] bg-white p-3.5 pl-5"
+                className="flex flex-col justify-between rounded-[20px] bg-white p-3.5 pl-5 min-h-[110px]"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
                     {stat.label}
                   </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
-                    <Icon size={17} strokeWidth={2} />
+                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
+                    <Icon size={16} strokeWidth={2} />
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <p className="text-3xl sm:text-4xl font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
+                <div className="mt-2.5">
+                  <p className="text-2xl sm:text-3xl font-extrabold tracking-[-0.04em] text-gray-900 leading-none truncate">
                     {stat.value}
                   </p>
-                  <p className="mt-1 text-xs font-medium text-gray-400 truncate">{stat.hint}</p>
+                  <p className="mt-1 text-[11px] sm:text-xs font-medium text-gray-400 truncate">{stat.hint}</p>
                 </div>
               </article>
             )
           })}
         </section>
 
-        {/* 2. График «Активность по месяцам» с идеальной адаптацией */}
+        {/* 2. График «Активность по месяцам» с идеальной геометрией и паддингами */}
         <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -333,13 +339,12 @@ export function Dashboard({ books }) {
             </div>
           </div>
 
-          {/* SVG График */}
+          {/* SVG График с математически выверенными границами 900x190 */}
           <div className="mt-6 w-full">
-            <div className="relative w-full aspect-[2.4/1] sm:aspect-[3.2/1] max-h-[220px]">
+            <div className="relative w-full aspect-[2.2/1] sm:aspect-[3.6/1] max-h-[220px]">
               <svg
-                viewBox="0 0 800 200"
-                className="h-full w-full overflow-visible"
-                preserveAspectRatio="none"
+                viewBox="0 0 900 190"
+                className="h-full w-full"
               >
                 <defs>
                   <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -348,10 +353,10 @@ export function Dashboard({ books }) {
                   </linearGradient>
                 </defs>
 
-                {/* Горизонтальные направляющие линии */}
-                <line x1="30" y1="25" x2="770" y2="25" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
-                <line x1="30" y1="85" x2="770" y2="85" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
-                <line x1="30" y1="145" x2="770" y2="145" stroke="#E5E7EB" strokeWidth="1" />
+                {/* Горизонтальные направляющие сетки */}
+                <line x1="30" y1="25" x2="870" y2="25" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="30" y1="85" x2="870" y2="85" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="30" y1="145" x2="870" y2="145" stroke="#E5E7EB" strokeWidth="1" />
 
                 {/* Заливка области под графиком */}
                 <path d={curveData.areaPath} fill="url(#areaGradient)" />
@@ -376,7 +381,7 @@ export function Dashboard({ books }) {
                       {/* Подпись месяца прямо под точкой */}
                       <text
                         x={pt.x}
-                        y={172}
+                        y={170}
                         textAnchor="middle"
                         className="fill-gray-400 text-[11px] font-semibold select-none"
                       >
@@ -387,7 +392,7 @@ export function Dashboard({ books }) {
                       <circle
                         cx={pt.x}
                         cy={pt.y}
-                        r={isPeak ? 5 : pt.val > 0 ? 4 : 2.5}
+                        r={isPeak ? 5 : pt.val > 0 ? 3.5 : 2}
                         className={`transition-all duration-200 ${
                           isPeak
                             ? 'fill-gray-900 stroke-white stroke-[2px]'
@@ -401,9 +406,9 @@ export function Dashboard({ books }) {
                       {pt.val > 0 ? (
                         <text
                           x={pt.x}
-                          y={pt.y - 10}
+                          y={pt.y - 9}
                           textAnchor="middle"
-                          className="fill-gray-900 text-[12px] font-bold select-none"
+                          className="fill-gray-900 text-[11px] font-bold select-none"
                         >
                           {pt.val}
                         </text>
@@ -416,7 +421,7 @@ export function Dashboard({ books }) {
           </div>
         </article>
 
-        {/* 3. Ряд 3: «Цель чтения» + «Книжный темп» */}
+        {/* 3. Ряд 3: «Цель чтения» + «Форматы» на одном уровне */}
         <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
           {/* Карточка 1: Цель чтения */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
@@ -453,51 +458,7 @@ export function Dashboard({ books }) {
             </div>
           </article>
 
-          {/* Карточка 2: Книжный темп и страницы */}
-          <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-gray-900">Книжный темп</h2>
-                <p className="mt-0.5 text-xs text-gray-400">Динамика и рекорды чтения</p>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
-                <Zap size={18} />
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-gray-50/80 p-3.5">
-                <div className="flex items-center gap-1.5 text-gray-500">
-                  <Flame size={14} className="text-gray-800" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                    Пик года
-                  </span>
-                </div>
-                <p className="mt-2 text-xl font-extrabold text-gray-900">{bestMonthName}</p>
-                <p className="mt-0.5 text-xs font-medium text-gray-400">
-                  {maxMonthCount} {plural(maxMonthCount, 'книга', 'книги', 'книг')}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-gray-50/80 p-3.5">
-                <div className="flex items-center gap-1.5 text-gray-500">
-                  <TrendingUp size={14} className="text-gray-800" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                    Скорость
-                  </span>
-                </div>
-                <p className="mt-2 text-xl font-extrabold text-gray-900">{readingSpeed}</p>
-                <p className="mt-0.5 text-xs font-medium text-gray-400">
-                  {pagesPerDay > 0 ? `~${pagesPerDay} стр./день` : 'книг в месяц'}
-                </p>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        {/* 4. Ряд 4: «Форматы» + «Жанры и теги» на одном уровне */}
-        <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
-          {/* Карточка 1: Форматы */}
+          {/* Карточка 2: Форматы */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
             <div className="flex items-center justify-between">
               <div>
@@ -542,8 +503,11 @@ export function Dashboard({ books }) {
               </div>
             </div>
           </article>
+        </section>
 
-          {/* Карточка 2: Жанры и теги (Только первые 3 жанра, без белых кружков) */}
+        {/* 4. Ряд 4: «Жанры и теги» + «Любимые авторы» */}
+        <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
+          {/* Карточка 1: Жанры и теги */}
           <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
             <div>
               <h2 className="text-base font-bold tracking-tight text-gray-900">Жанры и теги</h2>
@@ -573,73 +537,52 @@ export function Dashboard({ books }) {
               ) : null}
             </div>
           </article>
-        </section>
 
-        {/* 5. Ряд 5: «Любимые авторы» на всю ширину */}
-        <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold tracking-tight text-gray-900">Любимые авторы</h2>
-              <p className="mt-0.5 text-xs text-gray-400">Авторы с наибольшим количеством книг</p>
+          {/* Карточка 2: Любимые авторы */}
+          <article className="flex flex-col justify-between rounded-[24px] bg-white p-6 sm:p-7">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-gray-900">Любимые авторы</h2>
+                <p className="mt-0.5 text-xs text-gray-400">Авторы с наибольшим количеством книг</p>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
+                <Users size={18} />
+              </div>
             </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 shrink-0">
-              <Users size={18} />
-            </div>
-          </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {topAuthors.map((item, idx) => {
-              const ratingShade = getRatingShade(item.avgRating)
-              const ratingVal = Number(item.avgRating) || 0
-              const ratingBarPercent = Math.min((ratingVal / 10) * 100, 100)
+            <div className="mt-6 space-y-2.5">
+              {topAuthors.slice(0, 3).map((item, idx) => {
+                const ratingShade = getRatingShade(item.avgRating)
 
-              return (
-                <div
-                  key={item.author}
-                  className="flex flex-col justify-between rounded-2xl bg-gray-50/80 p-4 transition-all hover:bg-gray-100/80"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[11px] font-extrabold text-white">
-                      {item.count}
-                    </span>
-                    <span className="text-xs font-bold text-gray-400">#{idx + 1}</span>
-                  </div>
-
-                  <div className="mt-3">
-                    <h3 className="line-clamp-1 text-sm font-bold text-gray-900" title={item.author}>
-                      {item.author}
-                    </h3>
+                return (
+                  <div
+                    key={item.author}
+                    className="flex items-center justify-between rounded-xl bg-gray-50/80 px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[11px] font-extrabold text-white">
+                        {item.count}
+                      </span>
+                      <p className="truncate text-xs font-bold text-gray-900">{item.author}</p>
+                    </div>
 
                     {item.avgRating ? (
-                      <div className="mt-2.5 space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-gray-400">Рейтинг</span>
-                          <span className={`inline-flex items-center gap-0.5 ${ratingShade.text}`}>
-                            <Star size={11} className={ratingShade.star} />
-                            <span>{item.avgRating}</span>
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${ratingShade.bar}`}
-                            style={{ width: `${ratingBarPercent}%` }}
-                          />
-                        </div>
-                      </div>
+                      <span className={`inline-flex items-center gap-1 text-xs font-bold ${ratingShade.text} shrink-0`}>
+                        <Star size={11} className={ratingShade.star} />
+                        <span>{item.avgRating}</span>
+                      </span>
                     ) : (
-                      <p className="mt-2 text-[11px] text-gray-400">Без оценки</p>
+                      <span className="text-[11px] text-gray-400 shrink-0">Без оценки</span>
                     )}
                   </div>
-                </div>
-              )
-            })}
-            {topAuthors.length === 0 ? (
-              <p className="col-span-full text-center text-xs text-gray-400 py-4">
-                Авторы пока не добавлены
-              </p>
-            ) : null}
-          </div>
-        </article>
+                )
+              })}
+              {topAuthors.length === 0 ? (
+                <p className="text-center text-xs text-gray-400 py-4">Авторы пока не добавлены</p>
+              ) : null}
+            </div>
+          </article>
+        </section>
       </div>
 
       {/* Модальное окно постера «Итоги года» */}
