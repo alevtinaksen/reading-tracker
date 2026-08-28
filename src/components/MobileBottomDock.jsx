@@ -87,7 +87,7 @@ export function MobileBottomDock({
           <button
             type="button"
             onClick={() => onNavigate('library')}
-            className={`flex h-10 w-10 items-center justify-center rounded-full transition-all cursor-pointer ${
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-all cursor-pointer ${
               page === 'library'
                 ? 'bg-gray-900 text-white shadow-xs'
                 : 'text-gray-500 hover:text-gray-900'
@@ -95,13 +95,13 @@ export function MobileBottomDock({
             title="Библиотека"
             aria-label="Библиотека"
           >
-            <BookOpen size={18} strokeWidth={2.2} />
+            <BookOpen size={20} strokeWidth={2.2} />
           </button>
 
           <button
             type="button"
             onClick={() => onNavigate('dashboard')}
-            className={`flex h-10 w-10 items-center justify-center rounded-full transition-all cursor-pointer ${
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-all cursor-pointer ${
               page === 'dashboard'
                 ? 'bg-gray-900 text-white shadow-xs'
                 : 'text-gray-500 hover:text-gray-900'
@@ -109,7 +109,7 @@ export function MobileBottomDock({
             title="Дашборд"
             aria-label="Дашборд"
           >
-            <LayoutDashboard size={18} strokeWidth={2.2} />
+            <LayoutDashboard size={20} strokeWidth={2.2} />
           </button>
         </div>
 

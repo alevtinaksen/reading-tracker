@@ -182,7 +182,7 @@ export function BookCard({
 
             {/* Текстовая информация справа */}
             <div className="min-w-0 flex-1 flex flex-col justify-between self-stretch py-0.5">
-              {/* Верхняя строка: статус слева, дата + меню справа */}
+              {/* Верхняя строка: статус слева, меню справа */}
               <div className="flex items-center justify-between gap-1">
                 <span
                   className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-medium leading-none ${getStatusStyle(book.status)}`}
@@ -190,28 +190,23 @@ export function BookCard({
                   {statusLabel(book.status)}
                 </span>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {period ? (
-                    <span className="text-[11px] font-medium text-gray-400 mr-1">{period}</span>
-                  ) : null}
-                  <div ref={mobileMenuRef} className="relative">
-                    <button
-                      type="button"
-                      aria-label="Действия"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onToggleMenu(menuOpen ? null : book.id)
-                      }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
-                    >
-                      <MoreHorizontal size={16} />
-                    </button>
-                    {menuOpen ? renderActionMenu() : null}
-                  </div>
+                <div ref={mobileMenuRef} className="relative shrink-0">
+                  <button
+                    type="button"
+                    aria-label="Действия"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onToggleMenu(menuOpen ? null : book.id)
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  {menuOpen ? renderActionMenu() : null}
                 </div>
               </div>
 
-              {/* Название и автор снизу */}
+              {/* Название и автор */}
               <div className="mt-1">
                 <h4 className="font-extrabold text-[14px] leading-snug text-gray-900 line-clamp-2">
                   {book.title}
@@ -219,6 +214,13 @@ export function BookCard({
                 <p className="text-xs font-semibold text-gray-500 truncate mt-0.5">
                   {book.author || 'Автор не указан'}
                 </p>
+              </div>
+
+              {/* Нижняя строка: дата справа (под меню) */}
+              <div className="flex items-end justify-end mt-1">
+                {period ? (
+                  <span className="text-[11px] font-medium text-gray-400">{period}</span>
+                ) : null}
               </div>
             </div>
           </article>
