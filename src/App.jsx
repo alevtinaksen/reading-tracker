@@ -186,11 +186,13 @@ function App() {
         onCancel={() => setDeleteTarget(null)}
       />
 
+      {/* Уведомления toast */}
       <Toaster
-        position="bottom-center"
-        offset="5.5rem"
+        position="top-center"
+        richColors
+        closeButton
         toastOptions={{
-          className: 'shadow-[0_12px_40px_rgba(0,0,0,0.14)] rounded-2xl border-gray-100 font-semibold text-xs',
+          className: '!rounded-2xl !shadow-[0_12px_40px_rgba(0,0,0,0.18)] !border-gray-200 !font-semibold !text-xs !py-3',
         }}
       />
     </div>
