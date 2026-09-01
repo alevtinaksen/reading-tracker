@@ -547,6 +547,23 @@ export function BookFormModal({ book, books, tags = [], onClose, onSave, onDelet
                       </div>
                     </Field>
 
+                    <Field label="Оценка">
+                      <div className="space-y-2">
+                        <RatingPicker
+                          value={form.rating}
+                          onChange={(v) => update('rating', v)}
+                          disabled={noRating}
+                        />
+                        <div className="pt-1">
+                          <CustomCheckbox
+                            checked={noRating}
+                            onChange={(c) => update('rating', c ? null : 8)}
+                            label="Без оценки"
+                          />
+                        </div>
+                      </div>
+                    </Field>
+
                     <Field label="Месяц и год прочтения">
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
@@ -770,5 +787,39 @@ function CustomCheckbox({ checked, onChange, label }) {
       </div>
       <span className="text-xs font-semibold text-gray-600">{label}</span>
     </label>
+  )
+}
+
+function RatingPicker({ value, onChange, disabled }) {
+  const current = Number(value) || 0
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-1 ${
+        disabled ? 'opacity-40 pointer-events-none' : ''
+      }`}
+    >
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => {
+        const isSelected = current === val
+        const isPast = current >= val
+
+        return (
+          <button
+            key={val}
+            type="button"
+            onClick={() => onChange(val)}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              isSelected
+                ? 'bg-gray-900 text-white shadow-xs scale-105'
+                : isPast
+                  ? 'bg-gray-200 text-gray-800'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {val}
+          </button>
+        )
+      })}
+    </div>
   )
 }
